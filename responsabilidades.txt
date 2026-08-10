@@ -21,8 +21,7 @@ jonathan oswaldo quijano cardona:
 
 
 
-
-Sneider Alvarez Santos:
+juan andres garzon 
 1.El usuario podrá ver una opción de sus productos comprados, productos favoritos, productos si están en pedido, fecha de la compra.
 2.El sistema debe permitir registrar compras de productos para actualizar el inventario.
 3.El sistema mostrará los productos seleccionados por el usuario y la sumatoria del total que deberá pagar.
