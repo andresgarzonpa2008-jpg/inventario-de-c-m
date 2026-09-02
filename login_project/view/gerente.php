@@ -1,119 +1,58 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C&M Soluciones Abrasivas</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Roboto:wght@300;400;500;700&display=swap');
-        body {
-            font-family: 'Roboto', sans-serif;
+<?php
+require_once __DIR__ . '/../config/conexion.php';
+$db = (new Conexion())->conn;
+$currentUser = $_SESSION['user'] ?? [];
+$roles = ['usuario'=>'Usuario estándar','cliente'=>'Cliente','proveedor'=>'Proveedor','inventario'=>'Inventario','gerente'=>'Gerente','admin'=>'Administrador'];
+$message = $error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['form_action'] ?? '';
+    try {
+        if (in_array($action, ['create_user', 'update_user'], true)) {
+            $id = (int)($_POST['id'] ?? 0); $role = trim($_POST['rol'] ?? 'cliente');
+            $data = [trim($_POST['nombre'] ?? ''), trim($_POST['apellido'] ?? ''), trim($_POST['documento_id'] ?? ''), trim($_POST['fecha_nacimiento'] ?? '') ?: null, trim($_POST['correo'] ?? ''), trim($_POST['username'] ?? ''), $role];
+            if ($data[0] === '' || $data[1] === '' || $data[4] === '' || $data[5] === '' || !array_key_exists($role, $roles)) throw new RuntimeException('Completa los campos obligatorios y selecciona un rol válido.');
+            if ($action === 'create_user') {
+                if (empty($_POST['password'])) throw new RuntimeException('La contraseña es obligatoria.');
+                $stmt = $db->prepare('INSERT INTO usuarios (nombre, apellido, documento_id, fecha_nacimiento, correo, username, password, rol) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmt->execute([...$data, password_hash($_POST['password'], PASSWORD_BCRYPT)]);
+                $message = 'Usuario creado correctamente.';
+            } else {
+                $stmt = $db->prepare('UPDATE usuarios SET nombre=?, apellido=?, documento_id=?, fecha_nacimiento=?, correo=?, username=?, rol=? WHERE id=?');
+                $stmt->execute([...$data, $id]);
+                if (!empty($_POST['password'])) { $stmt = $db->prepare('UPDATE usuarios SET password=? WHERE id=?'); $stmt->execute([password_hash($_POST['password'], PASSWORD_BCRYPT), $id]); }
+                $message = 'Usuario actualizado correctamente.';
+            }
+        } elseif ($action === 'delete_user') {
+            $id = (int)($_POST['id'] ?? 0);
+            if ($id === (int)($currentUser['id'] ?? 0)) throw new RuntimeException('No puedes eliminar tu propia cuenta.');
+            $stmt = $db->prepare('DELETE FROM usuarios WHERE id=?'); $stmt->execute([$id]); $message = 'Usuario eliminado correctamente.';
+        } elseif (in_array($action, ['create_product', 'update_product'], true)) {
+            $code = (int)($_POST['codigo'] ?? 0); $name = trim($_POST['nombre_producto'] ?? ''); $category = trim($_POST['categoria'] ?? 'Abrasivos'); $image = trim($_POST['imagen_url'] ?? ''); $price = (float)($_POST['precio'] ?? 0); $stock = (int)($_POST['stock'] ?? 0); $minimum = (int)($_POST['stock_minimo'] ?? 0);
+            if ($name === '' || $price < 0 || $stock < 0) throw new RuntimeException('Completa nombre, precio y stock correctamente.');
+            $stmt = $db->prepare('SELECT id_categoria FROM categoria WHERE nombre_categoria=? LIMIT 1'); $stmt->execute([$category]); $categoryId = $stmt->fetchColumn();
+            if (!$categoryId) { $stmt = $db->prepare('INSERT INTO categoria (nombre_categoria, descripcion) VALUES (?, ?)'); $stmt->execute([$category, 'Categoría de productos abrasivos']); $categoryId = $db->lastInsertId(); }
+            if ($action === 'create_product') { $code = (int)$db->query('SELECT COALESCE(MAX(PRO_codigo),0)+1 FROM productos')->fetchColumn(); $stmt = $db->prepare('INSERT INTO productos (PRO_codigo, PRO_nombre_producto, PRO_imagen_url, PRO_precio_unitario, PRO_stock_actual, PRO_stock_minimo, PRO_cantidad_disponible, id_categoria, id_tipo_material, PRO_costo_base) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)'); $stmt->execute([$code,$name,$image,$price,$stock,$minimum,$stock,$categoryId,$price]); $message='Producto creado correctamente.'; }
+            else { $stmt=$db->prepare('UPDATE productos SET PRO_nombre_producto=?, PRO_imagen_url=?, PRO_precio_unitario=?, PRO_stock_actual=?, PRO_stock_minimo=?, PRO_cantidad_disponible=?, id_categoria=? WHERE PRO_codigo=?'); $stmt->execute([$name,$image,$price,$stock,$minimum,$stock,$categoryId,$code]); $message='Producto actualizado correctamente.'; }
+        } elseif ($action === 'delete_product') {
+            $code=(int)($_POST['codigo'] ?? 0); $stmt=$db->prepare('SELECT PRO_nombre_producto FROM productos WHERE PRO_codigo=?'); $stmt->execute([$code]); $name=$stmt->fetchColumn(); $stmt=$db->prepare('DELETE FROM productos WHERE PRO_codigo=?'); $stmt->execute([$code]); if ($name) { $stmt=$db->prepare('INSERT INTO auditoria_productos_borrados (codigo_producto,nombre_producto) VALUES (?,?)'); $stmt->execute([$code,$name]); } $message='Producto eliminado correctamente.';
         }
-        .font-industrial {
-            font-family: 'Oswald', sans-serif;
-        }
-    </style>
-</head>
-<body class="bg-gray-900 text-white min-h-screen">
-
-    <!-- HEADER -->
-    <header class="bg-gradient-to-r from-amber-600 to-amber-500 shadow-lg">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 border-2 border-white rotate-45 flex items-center justify-center bg-black/40">
-                    <span class="font-industrial text-white text-lg font-bold -rotate-45">C&M</span>
-                </div>
-                <h1 class="font-industrial text-2xl font-bold">PANEL GERENTE</h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="text-right">
-                    <p class="font-semibold"><?php echo htmlspecialchars($_SESSION["user"]["username"]); ?></p>
-                    <p class="text-xs bg-red-600 px-3 py-1 rounded-full inline-block mt-1">gerente</p>
-                </div>
-                <a href="index.php?action=logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition flex items-center gap-2">
-                    <i data-lucide="log-out" class="w-4 h-4"></i>
-                    Cerrar Sesión
-                </a>
-            </div>
-        </div>
-    </header>
-
-    <div class="max-w-7xl mx-auto px-6 py-8">
-        <!-- TARJETAS DE FUNCIONES -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:border-amber-500 transition cursor-pointer">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-industrial text-lg font-bold">Usuarios</h3>
-                    <i data-lucide="users" class="w-8 h-8 text-amber-400"></i>
-                </div>
-                <p class="text-gray-400 text-sm mb-4">Gestionar usuarios del sistema</p>
-                <a href="#" class="text-amber-400 hover:text-amber-300 text-sm font-semibold">Ir →</a>
-            </div>
-
-            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:border-amber-500 transition cursor-pointer">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-industrial text-lg font-bold">Reportes</h3>
-                    <i data-lucide="file-text" class="w-8 h-8 text-amber-400"></i>
-                </div>
-                <p class="text-gray-400 text-sm mb-4">Ver reportes del sistema</p>
-                <a href="#" class="text-amber-400 hover:text-amber-300 text-sm font-semibold">Ir →</a>
-            </div>
-
-            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:border-amber-500 transition cursor-pointer">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-industrial text-lg font-bold">Configuración</h3>
-                    <i data-lucide="settings" class="w-8 h-8 text-amber-400"></i>
-                </div>
-                <p class="text-gray-400 text-sm mb-4">Configurar el sistema</p>
-                <a href="#" class="text-amber-400 hover:text-amber-300 text-sm font-semibold">Ir →</a>
-            </div>
-
-            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:border-amber-500 transition cursor-pointer">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-industrial text-lg font-bold">Auditoría</h3>
-                    <i data-lucide="shield-alert" class="w-8 h-8 text-amber-400"></i>
-                </div>
-                <p class="text-gray-400 text-sm mb-4">Historial de actividades</p>
-                <a href="#" class="text-amber-400 hover:text-amber-300 text-sm font-semibold">Ir →</a>
-            </div>
-        </div>
-
-        <!-- TABLA DE USUARIOS -->
-        <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-            <h2 class="font-industrial text-xl font-bold mb-4 flex items-center gap-2">
-                <i data-lucide="users" class="w-6 h-6 text-amber-400"></i>
-                Gestión de Usuarios
-            </h2>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="border-b border-gray-700">
-                        <tr>
-                            <th class="pb-3 font-semibold text-amber-400">Usuario</th>
-                            <th class="pb-3 font-semibold text-amber-400">Rol</th>
-                            <th class="pb-3 font-semibold text-amber-400">Estado</th>
-                            <th class="pb-3 font-semibold text-amber-400">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="border-b border-gray-700 hover:bg-gray-700/50">
-                            <td class="py-3"><?php echo htmlspecialchars($_SESSION["user"]["username"]); ?></td>
-                            <td class="py-3"><span class="bg-red-600 px-2 py-1 rounded text-xs">Administrador</span></td>
-                            <td class="py-3"><span class="bg-green-600 px-2 py-1 rounded text-xs">Activo</span></td>
-                            <td class="py-3">
-                                <button class="text-amber-400 hover:text-amber-300 mr-3">Editar</button>
-                                <button class="text-red-400 hover:text-red-300">Eliminar</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        lucide.createIcons();
-    </script>
-</body>
-</html>
+    } catch (Throwable $exception) { $error = $exception->getCode() === '23000' ? 'El usuario ya existe o está relacionado con otros datos.' : $exception->getMessage(); }
+}
+$users=$db->query('SELECT id,nombre,apellido,documento_id,fecha_nacimiento,correo,username,rol FROM usuarios ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
+$categories=$db->query('SELECT nombre_categoria FROM categoria ORDER BY nombre_categoria')->fetchAll(PDO::FETCH_COLUMN);
+$products=$db->query('SELECT p.*,c.nombre_categoria FROM productos p LEFT JOIN categoria c ON c.id_categoria=p.id_categoria ORDER BY p.PRO_codigo DESC')->fetchAll(PDO::FETCH_ASSOC);
+$audit=$db->query('SELECT codigo_producto,nombre_producto,fecha_borrado FROM auditoria_productos_borrados ORDER BY fecha_borrado DESC LIMIT 20')->fetchAll(PDO::FETCH_ASSOC);
+$stats=['users'=>count($users),'products'=>count($products),'stock'=>array_sum(array_column($products,'PRO_stock_actual')),'low'=>count(array_filter($products,fn($p)=>(int)$p['PRO_stock_actual'] <= (int)$p['PRO_stock_minimo']))];
+?>
+<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Panel Gerente | C&M</title><script src="https://cdn.tailwindcss.com"></script><script src="https://unpkg.com/lucide@latest"></script><style>@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Roboto:wght@300;400;500;700&display=swap');body{font-family:Roboto,sans-serif;background:#070a12}.font-industrial{font-family:Oswald,sans-serif}.tab-active{border-color:#fbbf24;box-shadow:0 0 22px #fbbf2426;background:#253044}.module{animation:appear .25s ease}@keyframes appear{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}.field{width:100%;border:1px solid #334155;border-radius:9px;background:#172033;color:#fff;padding:12px;outline:0}.field:focus{border-color:#fbbf24}</style></head><body class="min-h-screen text-white">
+<header class="sticky top-0 z-30 border-b border-amber-300/20 bg-gradient-to-r from-amber-600 via-amber-500 to-orange-500 shadow-xl"><div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3"><div class="flex items-center gap-3"><div class="flex h-10 w-10 rotate-45 items-center justify-center border-2 border-white bg-black/30"><span class="font-industrial -rotate-45 font-bold">C&M</span></div><h1 class="font-industrial text-xl font-bold uppercase sm:text-2xl">Panel Gerente</h1></div><div class="flex items-center gap-3"><div class="text-right"><b><?php echo htmlspecialchars($currentUser['username']??'Gerente'); ?></b><div><span class="rounded-full bg-red-600 px-3 py-1 text-xs font-bold">GERENTE</span></div></div><a href="index.php?action=logout" class="flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-bold hover:bg-red-700"><i data-lucide="log-out" class="h-4 w-4"></i><span class="hidden sm:inline">Cerrar sesión</span></a></div></div></header>
+<main class="mx-auto max-w-7xl px-4 py-7 sm:px-6"><?php if($message):?><div class="mb-5 rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-emerald-300"><?php echo htmlspecialchars($message);?></div><?php endif;?><?php if($error):?><div class="mb-5 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-red-300"><?php echo htmlspecialchars($error);?></div><?php endif;?>
+<div class="mb-7 grid grid-cols-2 gap-3 lg:grid-cols-4"><?php $tabs=[['users','Usuarios','Personal y roles','usuarios'],['package','Productos / Inventario','Catálogo abrasivo','productos'],['chart-no-axes-combined','Reportes','Resumen operativo','reportes'],['shield-alert','Auditoría','Historial de acciones','auditoria']];foreach($tabs as $i=>$tab):?><button type="button" data-tab="<?php echo $tab[3];?>" class="tab <?php echo $i===0?'tab-active':'';?> rounded-xl border border-slate-700 bg-[#202b3b] p-4 text-left transition hover:border-amber-400"><div class="flex items-center justify-between"><b class="font-industrial text-lg sm:text-xl"><?php echo $tab[1];?></b><i data-lucide="<?php echo $tab[0];?>" class="h-8 w-8 text-amber-400"></i></div><p class="mt-3 text-xs text-slate-400 sm:text-sm"><?php echo $tab[2];?></p><span class="mt-4 block text-sm font-bold text-amber-400">Abrir →</span></button><?php endforeach;?></div>
+<section id="usuarios" class="module rounded-xl border border-slate-700 bg-[#111925] p-4 shadow-2xl sm:p-6"><div class="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-widest text-amber-400">Personal y permisos</p><h2 class="font-industrial text-2xl font-bold">Gestión de usuarios</h2></div><button data-open="userModal" class="rounded-lg bg-amber-400 px-4 py-2.5 font-industrial font-bold text-black hover:bg-amber-300"><i data-lucide="user-plus" class="mr-1 inline h-4 w-4"></i>Agregar usuario</button></div><div class="overflow-x-auto"><table class="w-full min-w-[760px] text-left text-sm"><thead class="border-b border-slate-700 text-amber-400"><tr><th class="p-3">Nombre</th><th class="p-3">Usuario</th><th class="p-3">Correo</th><th class="p-3">Rol</th><th class="p-3">Estado</th><th class="p-3">Acciones</th></tr></thead><tbody><?php foreach($users as $u):?><tr class="border-b border-slate-800 hover:bg-slate-800/50"><td class="p-3 font-semibold"><?php echo htmlspecialchars($u['nombre'].' '.$u['apellido']);?></td><td class="p-3 text-slate-300"><?php echo htmlspecialchars($u['username']);?></td><td class="p-3 text-slate-400"><?php echo htmlspecialchars($u['correo']);?></td><td class="p-3"><span class="rounded bg-amber-400/15 px-2 py-1 text-xs text-amber-300"><?php echo htmlspecialchars($roles[$u['rol']]??$u['rol']);?></span></td><td class="p-3 text-emerald-300">Activo</td><td class="p-3"><button class="mr-2 text-amber-400 hover:underline" data-edit-user='<?php echo htmlspecialchars(json_encode($u),ENT_QUOTES,'UTF-8');?>'>Editar</button><button class="text-red-400 hover:underline" data-delete-user="<?php echo $u['id'];?>">Eliminar</button></td></tr><?php endforeach;?></tbody></table></div></section>
+<section id="productos" class="module hidden rounded-xl border border-slate-700 bg-[#111925] p-4 shadow-2xl sm:p-6"><div class="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-widest text-amber-400">Catálogo industrial</p><h2 class="font-industrial text-2xl font-bold">Productos abrasivos</h2></div><button data-open="productModal" class="rounded-lg bg-amber-400 px-4 py-2.5 font-industrial font-bold text-black hover:bg-amber-300"><i data-lucide="package-plus" class="mr-1 inline h-4 w-4"></i>Añadir producto</button></div><div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><?php foreach($products as $p):$low=(int)$p['PRO_stock_actual']<=(int)$p['PRO_stock_minimo'];?><article class="overflow-hidden rounded-xl border border-slate-700 bg-[#202b3b]"><div class="flex h-32 items-center justify-center bg-gradient-to-br from-slate-700 to-[#0b0f19]"><i data-lucide="disc-3" class="h-16 w-16 text-amber-400"></i></div><div class="p-4"><div class="flex justify-between gap-2"><span class="rounded-full bg-amber-400/15 px-2 py-1 text-xs text-amber-300"><?php echo htmlspecialchars($p['nombre_categoria']??'Abrasivos');?></span><span class="text-xs text-slate-500">REF-<?php echo $p['PRO_codigo'];?></span></div><h3 class="mt-3 font-industrial text-xl font-bold"><?php echo htmlspecialchars($p['PRO_nombre_producto']);?></h3><p class="mt-1 text-sm text-slate-400">Abrasivo industrial para corte, desbaste, lijado y acabado.</p><div class="mt-4 flex justify-between"><span class="<?php echo $low?'text-red-400':'text-emerald-400';?>"><small class="block text-slate-500">Stock</small><?php echo $p['PRO_stock_actual'];?> unidades</span><strong class="text-amber-300">$<?php echo number_format($p['PRO_precio_unitario'],0,',','.');?></strong></div><div class="mt-4 border-t border-slate-700 pt-3"><button class="mr-3 text-sm text-amber-400 hover:underline" data-edit-product='<?php echo htmlspecialchars(json_encode($p),ENT_QUOTES,'UTF-8');?>'>Editar</button><button class="text-sm text-red-400 hover:underline" data-delete-product="<?php echo $p['PRO_codigo'];?>">Eliminar</button></div></div></article><?php endforeach;?></div></section>
+<section id="reportes" class="module hidden rounded-xl border border-slate-700 bg-[#111925] p-5 shadow-2xl"><p class="text-xs font-bold uppercase tracking-widest text-amber-400">Indicadores operativos</p><h2 class="font-industrial text-2xl font-bold">Reportes del sistema</h2><div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><?php foreach([['users','Usuarios registrados',$stats['users'],'text-cyan-300'],['package','Productos catalogados',$stats['products'],'text-amber-300'],['boxes','Unidades en stock',$stats['stock'],'text-emerald-300'],['triangle-alert','Bajo mínimo',$stats['low'],'text-red-300']] as $r):?><div class="rounded-xl border border-slate-700 bg-[#202b3b] p-5"><i data-lucide="<?php echo $r[0];?>" class="h-7 w-7 text-amber-400"></i><p class="mt-5 text-sm text-slate-400"><?php echo $r[1];?></p><b class="font-industrial text-4xl <?php echo $r[3];?>"><?php echo $r[2];?></b></div><?php endforeach;?></div></section>
+<section id="auditoria" class="module hidden rounded-xl border border-slate-700 bg-[#111925] p-5 shadow-2xl"><p class="text-xs font-bold uppercase tracking-widest text-amber-400">Trazabilidad</p><h2 class="font-industrial text-2xl font-bold">Auditoría de productos</h2><div class="mt-5 overflow-x-auto"><table class="w-full min-w-[600px] text-left text-sm"><thead class="border-b border-slate-700 text-amber-400"><tr><th class="p-3">Referencia</th><th class="p-3">Producto</th><th class="p-3">Acción</th><th class="p-3">Fecha</th></tr></thead><tbody><?php foreach($audit as $a):?><tr class="border-b border-slate-800"><td class="p-3">REF-<?php echo $a['codigo_producto'];?></td><td class="p-3"><?php echo htmlspecialchars($a['nombre_producto']);?></td><td class="p-3 text-red-300">Eliminado</td><td class="p-3 text-slate-400"><?php echo $a['fecha_borrado'];?></td></tr><?php endforeach;?><?php if(!$audit):?><tr><td colspan="4" class="p-6 text-center text-slate-400">Aún no hay movimientos registrados.</td></tr><?php endif;?></tbody></table></div></section></main>
+<div id="userModal" class="modal fixed inset-0 z-50 hidden items-center justify-center overflow-y-auto bg-black/80 p-4"><div class="w-full max-w-2xl rounded-2xl border border-amber-400/40 bg-[#0b0f19] p-6"><div class="mb-5 flex justify-between"><h2 id="userTitle" class="font-industrial text-2xl font-bold">Agregar usuario</h2><button data-close="userModal"><i data-lucide="x"></i></button></div><form method="post" class="grid gap-4 sm:grid-cols-2"><input type="hidden" name="form_action" id="userAction" value="create_user"><input type="hidden" name="id" id="userId"><input name="nombre" id="userNombre" placeholder="Nombre *" required class="field"><input name="apellido" id="userApellido" placeholder="Apellido *" required class="field"><input name="documento_id" id="userDocumento" placeholder="Documento" class="field"><input type="date" name="fecha_nacimiento" id="userFecha" class="field"><input type="email" name="correo" id="userCorreo" placeholder="Correo *" required class="field"><input name="username" id="userUsername" placeholder="Usuario *" required class="field"><input type="password" name="password" placeholder="Contraseña" class="field"><select name="rol" id="userRole" class="field"><?php foreach($roles as $v=>$l):?><option value="<?php echo $v;?>"><?php echo $l;?></option><?php endforeach;?></select><button class="sm:col-span-2 rounded-lg bg-amber-400 py-3 font-industrial font-bold text-black">Guardar usuario</button></form></div></div>
+<div id="productModal" class="modal fixed inset-0 z-50 hidden items-center justify-center overflow-y-auto bg-black/80 p-4"><div class="w-full max-w-xl rounded-2xl border border-amber-400/40 bg-[#0b0f19] p-6"><div class="mb-5 flex justify-between"><h2 id="productTitle" class="font-industrial text-2xl font-bold">Añadir producto abrasivo</h2><button data-close="productModal"><i data-lucide="x"></i></button></div><form method="post" class="grid gap-4 sm:grid-cols-2"><input type="hidden" name="form_action" id="productAction" value="create_product"><input type="hidden" name="codigo" id="productCode"><input name="nombre_producto" id="productName" placeholder="Nombre del producto *" required class="field sm:col-span-2"><input name="categoria" id="productCategory" list="categoryList" placeholder="Categoría" class="field sm:col-span-2"><datalist id="categoryList"><?php foreach($categories as $c):?><option><?php echo htmlspecialchars($c);?></option><?php endforeach;?></datalist><textarea name="descripcion" placeholder="Descripción técnica de uso" class="field sm:col-span-2"></textarea><input type="number" min="0" name="stock" id="productStock" placeholder="Stock" required class="field"><input type="number" min="0" name="stock_minimo" id="productMinimum" placeholder="Stock mínimo" class="field"><input type="number" min="0" step=".01" name="precio" id="productPrice" placeholder="Precio" required class="field sm:col-span-2"><button class="sm:col-span-2 rounded-lg bg-amber-400 py-3 font-industrial font-bold text-black">Guardar producto</button></form></div></div>
+<script>lucide.createIcons();const open=id=>document.getElementById(id).classList.replace('hidden','flex'),close=id=>document.getElementById(id).classList.replace('flex','hidden');document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('tab-active'));b.classList.add('tab-active');document.querySelectorAll('.module').forEach(x=>x.classList.add('hidden'));document.getElementById(b.dataset.tab).classList.remove('hidden')});document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>open(b.dataset.open));document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>close(b.dataset.close));document.querySelectorAll('.modal').forEach(m=>m.onclick=e=>{if(e.target===m)close(m.id)});function post(a,n,v){const f=document.createElement('form');f.method='post';f.innerHTML=`<input name="form_action" value="${a}"><input name="${n}" value="${v}">`;document.body.append(f);f.submit()}document.querySelectorAll('[data-delete-user]').forEach(b=>b.onclick=()=>confirm('¿Eliminar este usuario?')&&post('delete_user','id',b.dataset.deleteUser));document.querySelectorAll('[data-delete-product]').forEach(b=>b.onclick=()=>confirm('¿Eliminar este producto?')&&post('delete_product','codigo',b.dataset.deleteProduct));document.querySelectorAll('[data-edit-user]').forEach(b=>b.onclick=()=>{const u=JSON.parse(b.dataset.editUser);document.getElementById('userTitle').textContent='Editar usuario';document.getElementById('userAction').value='update_user';['id','nombre','apellido','documento_id','fecha_nacimiento','correo','username'].forEach(k=>document.getElementById('user'+k[0].toUpperCase()+k.slice(1)).value=u[k]||'');document.getElementById('userRole').value=u.rol;open('userModal')});document.querySelectorAll('[data-edit-product]').forEach(b=>b.onclick=()=>{const p=JSON.parse(b.dataset.editProduct);document.getElementById('productTitle').textContent='Editar producto';document.getElementById('productAction').value='update_product';document.getElementById('productCode').value=p.PRO_codigo;document.getElementById('productName').value=p.PRO_nombre_producto;document.getElementById('productCategory').value=p.nombre_categoria||'';document.getElementById('productStock').value=p.PRO_stock_actual;document.getElementById('productMinimum').value=p.PRO_stock_minimo;document.getElementById('productPrice').value=p.PRO_precio_unitario;open('productModal')});</script></body></html>
