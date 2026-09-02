@@ -102,7 +102,7 @@
                     </div>
                 </div>
 
-                <!-- ALERTA DE ÉXITO DE REGISTRO -->
+                <!-- ALERTA DE ÉXITO -->
                 <?php if (!empty($mensaje)): ?>
                     <div class="bg-emerald-500/10 border border-emerald-500/50 rounded-xl p-3.5 flex items-center gap-3 text-emerald-400 text-xs">
                         <i data-lucide="check-circle-2" class="w-5 h-5 flex-shrink-0"></i>
@@ -110,7 +110,7 @@
                     </div>
                 <?php endif; ?>
 
-                <!-- ALERTA DE ERROR DE LOGIN -->
+                <!-- ALERTA DE ERROR / ACCESO DENEGADO -->
                 <?php if (!empty($error)): ?>
                     <div class="bg-red-500/10 border border-red-500/50 rounded-xl p-3.5 flex items-center gap-3 text-red-400 text-xs">
                         <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
@@ -122,12 +122,41 @@
                 <form action="index.php" method="POST" class="space-y-5">
                     <input type="hidden" name="action" value="login">
 
+                    <!-- SELECTOR DE ROL DE ACCESO -->
+                    <div class="space-y-2">
+                        <label for="rol" class="font-industrial text-xs font-semibold tracking-wider uppercase text-gray-300">
+                            Rol de Acceso
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500 pointer-events-none">
+                                <i data-lucide="shield" class="w-4 h-4"></i>
+                            </span>
+                            <select 
+                                id="rol" 
+                                name="rol" 
+                                required
+                                class="w-full pl-10 pr-8 py-3 bg-[#131927] border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all appearance-none cursor-pointer"
+                            >
+                                <option value="" disabled selected class="bg-[#131927] text-gray-400">-- Selecciona tu rol --</option>
+                                <option value="gerente" class="bg-[#131927] text-white">Gerente</option>
+                                <option value="cliente" class="bg-[#131927] text-white">Cliente</option>
+                                <option value="proveedor" class="bg-[#131927] text-white">Proveedor</option>
+                                <option value="inventario" class="bg-[#131927] text-white">Gestor de Inventario / Almacén</option>
+                                <option value="usuario" class="bg-[#131927] text-white">Usuario Estándar</option>
+                                <option value="admin" class="bg-[#131927] text-white">Administrador</option>
+                            </select>
+                            <span class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-500 pointer-events-none">
+                                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            </span>
+                        </div>
+                    </div>
+
                     <div class="space-y-2">
                         <label for="username" class="font-industrial text-xs font-semibold tracking-wider uppercase text-gray-300">
                             Usuario
                         </label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500 pointer-events-none">
                                 <i data-lucide="user" class="w-4 h-4"></i>
                             </span>
                             <input 
@@ -146,7 +175,7 @@
                             Contraseña
                         </label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500 pointer-events-none">
                                 <i data-lucide="lock" class="w-4 h-4"></i>
                             </span>
                             <input 

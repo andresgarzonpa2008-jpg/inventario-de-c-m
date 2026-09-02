@@ -200,8 +200,11 @@
                             class="w-full pl-10 pr-4 py-3 bg-[#131927] border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all appearance-none cursor-pointer"
                         >
                             <option value="usuario" selected>Usuario Estándar</option>
+                            <option value="cliente">Cliente</option>
+                            <option value="proveedor">Proveedor</option>
+                            <option value="inventario">Gestor de Inventario / Almacén</option>
                             <option value="gerente">Gerente</option>
-                            <option value="admin">proveedor</option>
+                            <option value="admin">Administrador</option>
                         </select>
                     </div>
                 </div>

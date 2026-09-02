@@ -25,7 +25,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
         $correo = trim($_POST["correo"] ?? '');
         $username = trim($_POST["username"] ?? '');
         $password = trim($_POST["password"] ?? '');
-        $rol = trim($_POST["rol"] ?? 'usuario'); // Obtiene el rol del formulario
+        $rol = trim($_POST["rol"] ?? 'cliente');
+        $roles_validos = ['usuario', 'cliente', 'proveedor', 'inventario', 'gerente', 'admin'];
+
+        if (!in_array($rol, $roles_validos, true)) {
+            $error = "El rol seleccionado no es válido.";
+            require_once "view/register.php";
+            exit();
+        }
 
         if (!empty($nombre) && !empty($apellido) && !empty($documento_id) && !empty($fecha_nacimiento) && !empty($correo) && !empty($username) && !empty($password)) {
             if ($controller->registrar($nombre, $apellido, $documento_id, $fecha_nacimiento, $correo, $username, $password, $rol)) {
@@ -43,25 +50,48 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
         }
     }
 
-    // ACCIÓN DE LOGIN
+    // ACCIÓN DE LOGIN CON VALIDACIÓN DE ROL EXACTO
     if ($_POST["action"] === "login") {
         $username = trim($_POST["username"] ?? '');
         $password = trim($_POST["password"] ?? '');
+        $rol_seleccionado = trim($_POST["rol"] ?? '');
 
+        // Obtener usuario desde el controlador (debe incluir el campo 'rol' de la BD)
         $user = $controller->login($username, $password);
 
         if ($user) {
+            $rol_bd = strtolower(trim($user['rol'] ?? 'cliente'));
+            $rol_sel = strtolower(trim($rol_seleccionado));
+
+            // VERIFICACIÓN DE ROL: Si el rol seleccionado NO coincide con el de la Base de Datos
+            if ($rol_sel !== $rol_bd) {
+                $error = "Acceso denegado: Tu cuenta no tiene permisos para el rol de '" . htmlspecialchars($rol_seleccionado) . "'.";
+                require_once "view/login.php";
+                exit();
+            }
+
+            // Si coincide, guardamos en sesión
             $_SESSION["user"] = $user;
-            $_SESSION["rol"] = $user['rol'] ?? 'usuario'; // Asigna rol por defecto si no existe
-            
-            // Redirige según el rol del usuario
-            $rol = $user['rol'] ?? 'usuario';
-            if ($rol === 'admin') {
-                header("Location: index.php?action=admin");
-            } elseif ($rol === 'gerente') {
-                header("Location: index.php?action=gerente");
-            } else {
-                header("Location: index.php?action=usuario&section=home");
+            $_SESSION["rol"] = $rol_bd;
+
+            // Redirección dinámica según el rol validado
+            switch ($rol_bd) {
+                case 'admin':
+                    header("Location: index.php?action=admin");
+                    break;
+                case 'gerente':
+                    header("Location: index.php?action=gerente");
+                    break;
+                case 'proveedor':
+                    header("Location: index.php?action=proveedor");
+                    break;
+                case 'inventario':
+                    header("Location: index.php?action=inventario");
+                    break;
+                case 'cliente':
+                default:
+                    header("Location: index.php?action=usuario&section=home");
+                    break;
             }
             exit();
         } else {
@@ -79,20 +109,22 @@ if (isset($_GET["action"]) && $_GET["action"] === "logout") {
     exit();
 }
 
-// 4. Enrutamiento de Vistas
+// 4. Enrutamiento de Vistas (Usuarios autenticados)
 if (isset($_SESSION["user"])) {
     require_once "config/conexion.php";
     $action = $_GET["action"] ?? 'usuario';
     $section = $_GET["section"] ?? 'home';
-    $rol = $_SESSION["rol"] ?? 'usuario';
+    $rol = $_SESSION["rol"] ?? 'cliente';
     
-    // Enrutamiento por rol
     if ($action === "admin" && $rol === "admin") {
         require_once "view/admin.php";
-    } elseif ($action === "gerente" && $rol === "gerente") {
+    } elseif ($action === "gerente" && ($rol === "gerente" || $rol === "admin")) {
         require_once "view/gerente.php";
-    } else if ($action === "usuario") {
-        // Mostrar dashboard con diferentes secciones
+    } elseif ($action === "proveedor" && ($rol === "proveedor" || $rol === "admin")) {
+        require_once "view/proveedores.php";
+    } elseif ($action === "inventario" && ($rol === "inventario" || $rol === "admin")) {
+        require_once "view/dashboard.php";
+    } elseif ($action === "usuario") {
         if ($section === "perfil") {
             require_once "view/perfil.php";
         } elseif ($section === "usuarios" && $rol === "admin") {
@@ -100,11 +132,9 @@ if (isset($_SESSION["user"])) {
         } elseif ($section === "editar_usuario" && $rol === "admin") {
             require_once "view/editar_usuario.php";
         } else {
-            // Vista por defecto para usuarios (home)
             require_once "view/dashboard.php";
         }
     } else {
-        // Vista por defecto para usuarios
         require_once "view/dashboard.php";
     }
 } else {
@@ -116,10 +146,3 @@ if (isset($_SESSION["user"])) {
         require_once "view/login.php";
     }
 }
-?>
-                ?>
-            </tbody>
-        </table>
-
-    </div>
-?>
