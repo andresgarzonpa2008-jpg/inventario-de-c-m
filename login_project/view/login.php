@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C&M Soluciones Abrasivas SAS - Iniciar Sesión</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Roboto:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+        .font-industrial {
+            font-family: 'Oswald', sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-[#070a12] text-white flex items-center justify-center relative overflow-x-hidden">
+
+    <!-- FONDO PRINCIPAL -->
+    <div class="absolute inset-0 z-0">
+        <img src="view/fondo.jpg.webp" alt="Fondo Abrasivos" class="w-full h-full object-cover opacity-75">
+        <div class="absolute inset-0 bg-gradient-to-r from-[#050811]/95 via-[#050811]/70 to-black/40"></div>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL SPLIT -->
+    <div class="relative z-10 w-full max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center min-h-screen">
+        
+        <!-- SECCIÓN IZQUIERDA: BRANDING -->
+        <div class="lg:col-span-7 space-y-8 pr-0 lg:pr-8">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 border-2 border-amber-400 rotate-45 flex items-center justify-center bg-black/60 backdrop-blur">
+                    <span class="font-industrial text-amber-400 text-xl font-bold -rotate-45">C&M</span>
+                </div>
+                <div>
+                    <h2 class="font-industrial text-2xl md:text-3xl font-bold tracking-wider text-white drop-shadow-md">SOLUCIONES ABRASIVAS SAS</h2>
+                    <p class="text-amber-400 text-xs tracking-widest font-semibold uppercase">A tu mano</p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h1 class="font-industrial text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-wide leading-tight drop-shadow-lg">
+                    Soluciones que <br>
+                    <span class="text-amber-400">Impulsan tu Productividad</span>
+                </h1>
+                <p class="text-gray-200 text-sm md:text-base max-w-xl font-light drop-shadow">
+                    Productos abrasivos de calidad para corte, desbaste, pulido y acabado de materiales industriales.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
+                <div class="text-center space-y-2">
+                    <div class="w-12 h-12 rounded-full border border-amber-400/60 bg-black/50 backdrop-blur flex items-center justify-center mx-auto text-amber-400 shadow-md">
+                        <i data-lucide="box" class="w-5 h-5"></i>
+                    </div>
+                    <p class="font-industrial text-xs font-semibold uppercase tracking-wider text-gray-100">Inventario <br><span class="text-amber-400">en Tiempo Real</span></p>
+                </div>
+                <div class="text-center space-y-2">
+                    <div class="w-12 h-12 rounded-full border border-amber-400/60 bg-black/50 backdrop-blur flex items-center justify-center mx-auto text-amber-400 shadow-md">
+                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+                    </div>
+                    <p class="font-industrial text-xs font-semibold uppercase tracking-wider text-gray-100">Productos <br><span class="text-amber-400">de Calidad</span></p>
+                </div>
+                <div class="text-center space-y-2">
+                    <div class="w-12 h-12 rounded-full border border-amber-400/60 bg-black/50 backdrop-blur flex items-center justify-center mx-auto text-amber-400 shadow-md">
+                        <i data-lucide="line-chart" class="w-5 h-5"></i>
+                    </div>
+                    <p class="font-industrial text-xs font-semibold uppercase tracking-wider text-gray-100">Reportes <br><span class="text-amber-400">Inteligentes</span></p>
+                </div>
+                <div class="text-center space-y-2">
+                    <div class="w-12 h-12 rounded-full border border-amber-400/60 bg-black/50 backdrop-blur flex items-center justify-center mx-auto text-amber-400 shadow-md">
+                        <i data-lucide="user-check" class="w-5 h-5"></i>
+                    </div>
+                    <p class="font-industrial text-xs font-semibold uppercase tracking-wider text-gray-100">Atención <br><span class="text-amber-400">Personalizada</span></p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 pt-6 border-t border-gray-700/80">
+                <i data-lucide="award" class="w-8 h-8 text-amber-400 flex-shrink-0"></i>
+                <div>
+                    <h4 class="font-industrial text-sm font-bold uppercase text-white tracking-wider">Calidad que Suma Resultados</h4>
+                    <p class="text-xs text-gray-300">Comprometidos con tu éxito industrial.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN DERECHA: TARJETA DE LOGIN -->
+        <div class="lg:col-span-5 w-full max-w-md mx-auto">
+            <div class="bg-[#0b0f19]/95 backdrop-blur-xl border border-gray-800 rounded-2xl p-8 shadow-2xl shadow-black/90 space-y-6">
+                
+                <div class="flex items-center gap-4 border-b border-gray-800 pb-5">
+                    <div class="w-12 h-12 rounded-full bg-amber-400/10 border border-amber-400 flex items-center justify-center text-amber-400">
+                        <i data-lucide="user" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-industrial text-2xl font-bold uppercase tracking-wider text-white">Iniciar Sesión</h3>
+                        <div class="w-10 h-1 bg-amber-400 mt-1 rounded-full"></div>
+                    </div>
+                </div>
+
+                <!-- ALERTA DE ÉXITO DE REGISTRO -->
+                <?php if (!empty($mensaje)): ?>
+                    <div class="bg-emerald-500/10 border border-emerald-500/50 rounded-xl p-3.5 flex items-center gap-3 text-emerald-400 text-xs">
+                        <i data-lucide="check-circle-2" class="w-5 h-5 flex-shrink-0"></i>
+                        <span><?php echo $mensaje; ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <!-- ALERTA DE ERROR DE LOGIN -->
+                <?php if (!empty($error)): ?>
+                    <div class="bg-red-500/10 border border-red-500/50 rounded-xl p-3.5 flex items-center gap-3 text-red-400 text-xs">
+                        <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+                        <span><?php echo $error; ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Formulario PHP -->
+                <form action="index.php" method="POST" class="space-y-5">
+                    <input type="hidden" name="action" value="login">
+
+                    <div class="space-y-2">
+                        <label for="username" class="font-industrial text-xs font-semibold tracking-wider uppercase text-gray-300">
+                            Usuario
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
+                                <i data-lucide="user" class="w-4 h-4"></i>
+                            </span>
+                            <input 
+                                type="text" 
+                                id="username" 
+                                name="username" 
+                                placeholder="Ingresa tu usuario"
+                                required
+                                class="w-full pl-10 pr-4 py-3 bg-[#131927] border border-gray-800 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="password" class="font-industrial text-xs font-semibold tracking-wider uppercase text-gray-300">
+                            Contraseña
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
+                                <i data-lucide="lock" class="w-4 h-4"></i>
+                            </span>
+                            <input 
+                                type="password" 
+                                id="password" 
+                                name="password" 
+                                placeholder="Ingresa tu contraseña"
+                                required
+                                class="w-full pl-10 pr-10 py-3 bg-[#131927] border border-gray-800 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
+                            >
+                        </div>
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        class="w-full py-3.5 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-black font-industrial text-base font-bold uppercase tracking-wider rounded-xl shadow-lg shadow-amber-400/20 transition-all transform active:scale-[0.99]"
+                    >
+                        Ingresar
+                    </button>
+                </form>
+
+                <div class="text-center pt-2 text-xs text-gray-400">
+                    ¿No tienes cuenta? 
+                    <a href="index.php?action=register" class="text-amber-400 font-bold hover:underline ml-1">
+                        Regístrate aquí
+                    </a>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
