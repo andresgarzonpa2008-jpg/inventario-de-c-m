@@ -10934,6 +10934,55 @@ body {
   top: 56px;
 }
 
+.gerente-dashboard #layoutSidenav_content main {
+  min-width: 0;
+}
+
+.gerente-dashboard .dashboard-stats,
+.gerente-dashboard .dashboard-charts {
+  display: grid;
+  margin-right: 0;
+  margin-left: 0;
+  gap: 1.5rem;
+}
+
+.gerente-dashboard .dashboard-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gerente-dashboard .dashboard-charts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gerente-dashboard .dashboard-stats > *,
+.gerente-dashboard .dashboard-charts > * {
+  width: auto;
+  max-width: none;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.gerente-dashboard .dashboard-stats .card {
+  min-height: 190px;
+}
+
+@media (max-width: 1199.98px) {
+  .gerente-dashboard .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .gerente-dashboard #layoutSidenav #layoutSidenav_content {
+    padding-left: 0;
+  }
+
+  .gerente-dashboard .dashboard-stats,
+  .gerente-dashboard .dashboard-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
 #layoutError {
   display: flex;
   flex-direction: column;

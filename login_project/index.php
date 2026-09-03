@@ -2,7 +2,15 @@
 // Archivo: index.php
 require_once "controller/UsuarioController.php";
 
+ini_set('session.use_strict_mode', '1');
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Lax',
+    'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+]);
 session_start();
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 $controller = new UsuarioController();
 
 $error = "";
@@ -26,7 +34,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
         $username = trim($_POST["username"] ?? '');
         $password = trim($_POST["password"] ?? '');
         $rol = trim($_POST["rol"] ?? 'cliente');
-        $roles_validos = ['usuario', 'cliente', 'proveedor', 'inventario', 'gerente', 'admin'];
+        $roles_validos = ['usuario', 'cliente'];
 
         if (!in_array($rol, $roles_validos, true)) {
             $error = "El rol seleccionado no es válido.";
@@ -70,7 +78,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
                 exit();
             }
 
-            // Si coincide, guardamos en sesión
+            // Si coincide, guardamos en sesión y renovamos el identificador.
+            session_regenerate_id(true);
             $_SESSION["user"] = $user;
             $_SESSION["rol"] = $rol_bd;
 
@@ -89,6 +98,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
                     header("Location: index.php?action=inventario");
                     break;
                 case 'cliente':
+                    header("Location: index.php?action=cliente");
+                    break;
                 default:
                     header("Location: index.php?action=usuario&section=home");
                     break;
@@ -104,8 +115,45 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
 
 // 3. Cierre de sesión
 if (isset($_GET["action"]) && $_GET["action"] === "logout") {
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+    }
     session_destroy();
     header("Location: index.php?action=login");
+    exit();
+}
+
+if (isset($_GET["action"]) && $_GET["action"] === "dashboard_data" && isset($_SESSION["user"])) {
+    require_once "config/conexion.php";
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $db = (new Conexion())->conn;
+        $productStats = $db->query('SELECT COUNT(*) AS products, COALESCE(SUM(PRO_stock_actual <= PRO_stock_minimo), 0) AS low FROM productos')->fetch(PDO::FETCH_ASSOC);
+        $data = [
+            'sales' => 0,
+            'pending' => 0,
+            'products' => (int) ($productStats['products'] ?? 0),
+            'low' => (int) ($productStats['low'] ?? 0),
+            'weekly' => array_fill(0, 7, 0),
+            'monthly' => array_fill(0, 6, 0),
+        ];
+        $hasSales = (bool) $db->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'ventas'")->fetchColumn();
+        if ($hasSales) {
+            $summary = $db->query("SELECT COALESCE(SUM(CASE WHEN MONTH(fecha_venta)=MONTH(CURRENT_DATE()) AND YEAR(fecha_venta)=YEAR(CURRENT_DATE()) AND estado <> 'Cancelada' THEN total ELSE 0 END),0) AS sales, COALESCE(SUM(estado='Pendiente'),0) AS pending FROM ventas")->fetch(PDO::FETCH_ASSOC);
+            $data['sales'] = (float) ($summary['sales'] ?? 0);
+            $data['pending'] = (int) ($summary['pending'] ?? 0);
+            $stmt = $db->query("SELECT WEEKDAY(fecha_venta) AS day_index, SUM(total) AS amount FROM ventas WHERE fecha_venta >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY) AND estado <> 'Cancelada' GROUP BY WEEKDAY(fecha_venta)");
+            foreach ($stmt as $row) { $index = (int) $row['day_index']; if ($index >= 0 && $index < 7) $data['weekly'][$index] = (float) $row['amount']; }
+            $stmt = $db->query("SELECT PERIOD_DIFF(EXTRACT(YEAR_MONTH FROM CURRENT_DATE()), EXTRACT(YEAR_MONTH FROM fecha_venta)) AS month_index, SUM(total) AS amount FROM ventas WHERE fecha_venta >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 MONTH) AND estado <> 'Cancelada' GROUP BY month_index");
+            foreach ($stmt as $row) { $index = (int) $row['month_index']; if ($index >= 0 && $index < 6) $data['monthly'][5 - $index] = (float) $row['amount']; }
+        }
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $exception) {
+        http_response_code(500);
+        echo json_encode(['error' => 'No fue posible actualizar los indicadores.']);
+    }
     exit();
 }
 
@@ -117,13 +165,17 @@ if (isset($_SESSION["user"])) {
     $rol = $_SESSION["rol"] ?? 'cliente';
     
     if ($action === "admin" && $rol === "admin") {
-        require_once "view/admin.php";
+        require_once "view/gerente_sbadm.php";
+    } elseif ($action === "cliente" && ($rol === "cliente" || $rol === "admin")) {
+        require_once "view/clientes_dashboard.php";
     } elseif ($action === "gerente" && ($rol === "gerente" || $rol === "admin")) {
-        require_once "view/gerente.php";
+        require_once "view/gerente_sbadm.php";
     } elseif ($action === "proveedor" && ($rol === "proveedor" || $rol === "admin")) {
-        require_once "view/proveedores.php";
-    } elseif ($action === "inventario" && ($rol === "inventario" || $rol === "admin")) {
-        require_once "view/dashboard.php";
+        require_once "view/proveedores_dashboard.php";
+    } elseif ($action === "inventario" && in_array($rol, ["inventario", "gerente", "admin"], true)) {
+        require_once "view/inventario.php";
+    } elseif ($action === "reportes" && in_array($rol, ["gerente", "admin"], true)) {
+        require_once "view/reportes.php";
     } elseif ($action === "usuario") {
         if ($section === "perfil") {
             require_once "view/perfil.php";
@@ -131,11 +183,17 @@ if (isset($_SESSION["user"])) {
             require_once "view/usuarios.php";
         } elseif ($section === "editar_usuario" && $rol === "admin") {
             require_once "view/editar_usuario.php";
+        } elseif ($rol === "cliente") {
+            require_once "view/clientes_dashboard.php";
+        } elseif ($rol === "proveedor") {
+            require_once "view/proveedores_dashboard.php";
+        } elseif ($rol === "gerente" || $rol === "admin" || $rol === "inventario") {
+            require_once "view/gerente_sbadm.php";
         } else {
-            require_once "view/dashboard.php";
+            require_once "view/clientes_dashboard.php";
         }
     } else {
-        require_once "view/dashboard.php";
+            require_once "view/gerente_sbadm.php";
     }
 } else {
     $action = $_GET["action"] ?? 'login';
