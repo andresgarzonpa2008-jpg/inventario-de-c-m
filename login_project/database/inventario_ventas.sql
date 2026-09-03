@@ -49,7 +49,6 @@ CREATE TABLE IF NOT EXISTS venta_detalle (
     precio_unitario DECIMAL(12,2) NOT NULL,
     subtotal DECIMAL(12,2) NOT NULL,
     CONSTRAINT fk_detalle_venta FOREIGN KEY (id_venta) REFERENCES ventas(id_venta) ON DELETE CASCADE,
-    CONSTRAINT fk_detalle_producto FOREIGN KEY (codigo_producto) REFERENCES productos(PRO_codigo),
     INDEX idx_detalle_producto (codigo_producto)
 ) ENGINE=InnoDB;
 
