@@ -14,9 +14,13 @@
                 "-S",
                 "localhost:8000",
                 "-t",
-                "."
+                "login_project"
             ],
-            "cwd": "${workspaceRoot}/."
+            "cwd": "${workspaceRoot}",
+            "serverReadyAction": {
+                "action": "openExternally",
+                "uri": "http://localhost:8000/index.php"
+            }
         },
         {
             "name": "Launch built-in server and Profile",
@@ -27,9 +31,9 @@
                 "-S",
                 "localhost:8000",
                 "-t",
-                "."
+                "login_project"
             ],
-            "cwd": "${workspaceRoot}/.",
+            "cwd": "${workspaceRoot}",
             "profile": true,
             "openProfile": true
         },
