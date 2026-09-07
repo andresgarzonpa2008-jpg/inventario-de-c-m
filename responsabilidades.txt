@@ -1,5 +1,4 @@
 johan estiven quintero duque:
-    modulos
 1.El sistema debe permitir al usuario iniciar sesión con usuario y contraseña.
 2.El sistema debe validar los datos ingresados y permitir o denegar el acceso
 3.El sistema debe permitir registrar nuevos productos en el inventario.

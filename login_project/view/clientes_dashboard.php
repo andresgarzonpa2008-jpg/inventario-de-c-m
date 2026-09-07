@@ -1,3 +1,12 @@
+<?php
+require_once __DIR__ . '/../config/conexion.php';
+$catalogProducts = [];
+try {
+    $catalogProducts = (new Conexion())->conn->query("SELECT PRO_codigo, PRO_nombre_producto, PRO_descripcion, PRO_marca, PRO_imagen_url, PRO_precio_unitario, PRO_stock_actual FROM productos ORDER BY PRO_codigo DESC")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $exception) {
+    $catalogProducts = [];
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
     <head>
@@ -233,42 +242,28 @@
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <!-- Producto 1 -->
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card h-100 shadow-sm">
-                                            <div class="card-body text-center">
-                                                <i class="fas fa-compact-disc fa-4x text-secondary mb-3"></i>
-                                                <h5 class="card-title">Rueda Abrasiva de Desbaste</h5>
-                                                <p class="card-text text-muted small">Ideal para trabajos pesados en metales y aceros inoxidables.</p>
-                                                <p class="fw-bold text-success">$ 65.000</p>
-                                                <button class="btn btn-outline-primary btn-sm" onclick="addToCart('Rueda Abrasiva de Desbaste', 65000)"><i class="fas fa-cart-plus"></i> Agregar al Carrito</button>
+                                    <?php foreach ($catalogProducts as $product):
+                                        $productName = htmlspecialchars($product['PRO_nombre_producto'], ENT_QUOTES, 'UTF-8');
+                                        $description = htmlspecialchars($product['PRO_descripcion'] ?: 'Producto abrasivo para aplicaciones industriales.', ENT_QUOTES, 'UTF-8');
+                                        $brand = htmlspecialchars($product['PRO_marca'] ?: 'C&M', ENT_QUOTES, 'UTF-8');
+                                        $price = (float) $product['PRO_precio_unitario'];
+                                        $stock = (int) $product['PRO_stock_actual'];
+                                        $image = trim((string) ($product['PRO_imagen_url'] ?? ''));
+                                    ?>
+                                        <div class="col-md-4 mb-3">
+                                            <div class="card h-100 shadow-sm border-0">
+                                                <?php if ($image): ?><img src="<?php echo htmlspecialchars($image, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo $productName; ?>" class="card-img-top" style="height:170px;object-fit:cover"><?php else: ?><div class="d-flex align-items-center justify-content-center bg-light text-warning" style="height:170px"><i class="fas fa-compact-disc fa-4x"></i></div><?php endif; ?>
+                                                <div class="card-body d-flex flex-column">
+                                                    <span class="small text-muted text-uppercase"><?php echo $brand; ?></span>
+                                                    <h5 class="card-title mt-1"><?php echo $productName; ?></h5>
+                                                    <p class="card-text text-muted small flex-grow-1"><?php echo $description; ?></p>
+                                                    <div class="d-flex justify-content-between align-items-center mb-3"><strong class="text-success">$ <?php echo number_format($price, 0, ',', '.'); ?></strong><span class="badge <?php echo $stock > 0 ? 'bg-success' : 'bg-secondary'; ?>"><?php echo $stock > 0 ? $stock . ' disponibles' : 'Agotado'; ?></span></div>
+                                                    <button class="btn btn-outline-primary btn-sm" <?php echo $stock > 0 ? '' : 'disabled'; ?> onclick="addToCart('<?php echo addslashes($product['PRO_nombre_producto']); ?>', <?php echo $price; ?>)"><i class="fas fa-cart-plus"></i> <?php echo $stock > 0 ? 'Agregar al Carrito' : 'Sin existencias'; ?></button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <!-- Producto 2 -->
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card h-100 shadow-sm">
-                                            <div class="card-body text-center">
-                                                <i class="fas fa-circle fa-4x text-warning mb-3"></i>
-                                                <h5 class="card-title">Lija de Banda Industrial</h5>
-                                                <p class="card-text text-muted small">Resistencia superior para pulido en madera y carpintería metálica.</p>
-                                                <p class="fw-bold text-success">$ 38.000</p>
-                                                <button class="btn btn-outline-primary btn-sm" onclick="addToCart('Lija de Banda Industrial', 38000)"><i class="fas fa-cart-plus"></i> Agregar al Carrito</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Producto 3 -->
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card h-100 shadow-sm">
-                                            <div class="card-body text-center">
-                                                <i class="fas fa-certificate fa-4x text-info mb-3"></i>
-                                                <h5 class="card-title">Cepillo Metálico Circular</h5>
-                                                <p class="card-text text-muted small">Excelente para remover óxido y limpiar superficies metálicas.</p>
-                                                <p class="fw-bold text-success">$ 52.000</p>
-                                                <button class="btn btn-outline-primary btn-sm" onclick="addToCart('Cepillo Metálico Circular', 52000)"><i class="fas fa-cart-plus"></i> Agregar al Carrito</button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <?php endforeach; ?>
+                                    <?php if (!$catalogProducts): ?><div class="col-12"><div class="alert alert-info mb-0"><i class="fas fa-info-circle me-2"></i>El catálogo está esperando nuevos productos del gerente.</div></div><?php endif; ?>
                                 </div>
                             </div>
                         </div>

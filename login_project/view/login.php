@@ -19,22 +19,24 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-[#070a12] text-white flex items-center justify-center relative overflow-x-hidden">
+<body class="min-h-screen bg-[#050912] text-white flex items-center justify-center relative overflow-x-hidden">
 
     <!-- FONDO PRINCIPAL -->
     <div class="absolute inset-0 z-0">
-        <img src="view/fondo.jpg.webp" alt="Fondo Abrasivos" class="w-full h-full object-cover opacity-75">
-        <div class="absolute inset-0 bg-gradient-to-r from-[#050811]/95 via-[#050811]/70 to-black/40"></div>
+        <img src="https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=2200&q=90" alt="Trabajo industrial con abrasivos" class="w-full h-full object-cover opacity-80">
+        <div class="absolute inset-0 bg-gradient-to-r from-[#03060c]/75 via-[#03060c]/48 to-[#02050b]/38"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_42%_48%,rgba(255,177,0,0.18),transparent_34%)]"></div>
+        <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(rgba(255, 191, 0, .12) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 191, 0, .12) 1px, transparent 1px); background-size: 48px 48px;"></div>
     </div>
 
     <!-- CONTENEDOR PRINCIPAL SPLIT -->
-    <div class="relative z-10 w-full max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center min-h-screen">
+    <div class="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 md:px-12 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center min-h-screen">
         
         <!-- SECCIÓN IZQUIERDA: BRANDING -->
-        <div class="lg:col-span-7 space-y-8 pr-0 lg:pr-8">
+        <div class="lg:col-span-7 space-y-8 pr-0 lg:pr-14">
             <div class="flex items-center gap-4">
-                <div class="w-14 h-14 border-2 border-amber-400 rotate-45 flex items-center justify-center bg-black/60 backdrop-blur">
-                    <span class="font-industrial text-amber-400 text-xl font-bold -rotate-45">C&M</span>
+                <div class="w-16 h-16 border-2 border-gray-200 rotate-45 flex items-center justify-center bg-[#18343a]/90 shadow-lg shadow-black/40">
+                    <span class="font-industrial text-amber-400 text-xl font-bold -rotate-45">C&amp;M</span>
                 </div>
                 <div>
                     <h2 class="font-industrial text-2xl md:text-3xl font-bold tracking-wider text-white drop-shadow-md">SOLUCIONES ABRASIVAS SAS</h2>
@@ -43,7 +45,7 @@
             </div>
 
             <div class="space-y-3">
-                <h1 class="font-industrial text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-wide leading-tight drop-shadow-lg">
+                <h1 class="font-industrial text-4xl md:text-5xl lg:text-[3.4rem] font-bold uppercase tracking-wide leading-tight drop-shadow-lg">
                     Soluciones que <br>
                     <span class="text-amber-400">Impulsan tu Productividad</span>
                 </h1>
@@ -90,7 +92,7 @@
 
         <!-- SECCIÓN DERECHA: TARJETA DE LOGIN -->
         <div class="lg:col-span-5 w-full max-w-md mx-auto">
-            <div class="bg-[#0b0f19]/95 backdrop-blur-xl border border-gray-800 rounded-2xl p-8 shadow-2xl shadow-black/90 space-y-6">
+            <div class="bg-[#05080e]/95 backdrop-blur-xl border border-gray-700/80 rounded-[2rem] p-8 md:p-10 shadow-2xl shadow-black/90 space-y-6">
                 
                 <div class="flex items-center gap-4 border-b border-gray-800 pb-5">
                     <div class="w-12 h-12 rounded-full bg-amber-400/10 border border-amber-400 flex items-center justify-center text-amber-400">
@@ -123,7 +125,7 @@
                     <input type="hidden" name="action" value="login">
 
                     <!-- SELECTOR DE ROL DE ACCESO -->
-                    <div class="space-y-2">
+                    <div id="role-panel" class="space-y-2">
                         <label for="rol" class="font-industrial text-xs font-semibold tracking-wider uppercase text-gray-300">
                             Rol de Acceso
                         </label>
@@ -134,8 +136,7 @@
                             <select 
                                 id="rol" 
                                 name="rol" 
-                                required
-                                class="w-full pl-10 pr-8 py-3 bg-[#131927] border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all appearance-none cursor-pointer"
+                                class="w-full pl-10 pr-8 py-3 bg-[#131927] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all appearance-none cursor-pointer"
                             >
                                 <option value="" disabled selected class="bg-[#131927] text-gray-400">-- Selecciona tu rol --</option>
                                 <option value="gerente" class="bg-[#131927] text-white">Gerente</option>
@@ -165,7 +166,7 @@
                                 name="username" 
                                 placeholder="Ingresa tu usuario"
                                 required
-                                class="w-full pl-10 pr-4 py-3 bg-[#131927] border border-gray-800 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
+                                class="w-full pl-10 pr-4 py-3 bg-[#131927] border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
                             >
                         </div>
                     </div>
@@ -184,18 +185,40 @@
                                 name="password" 
                                 placeholder="Ingresa tu contraseña"
                                 required
-                                class="w-full pl-10 pr-10 py-3 bg-[#131927] border border-gray-800 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
+                                class="w-full pl-10 pr-10 py-3 bg-[#131927] border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
                             >
+                            <button type="button" id="toggle-password" aria-label="Mostrar contraseña" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-amber-400">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
                         </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-gray-300">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="remember" class="h-5 w-5 rounded border-gray-600 bg-[#131927] text-amber-400 focus:ring-amber-400">
+                            <span>Recuérdame</span>
+                        </label>
+                        <a href="#" class="text-amber-400 hover:text-amber-300">¿Olvidaste tu contraseña?</a>
                     </div>
 
                     <button 
                         type="submit" 
-                        class="w-full py-3.5 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-black font-industrial text-base font-bold uppercase tracking-wider rounded-xl shadow-lg shadow-amber-400/20 transition-all transform active:scale-[0.99]"
+                        class="w-full py-3.5 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-black font-industrial text-base font-bold uppercase tracking-wider rounded-lg shadow-lg shadow-amber-400/20 transition-all transform active:scale-[0.99]"
                     >
                         Ingresar
                     </button>
                 </form>
+
+                <div class="relative flex items-center gap-4 text-xs text-gray-400">
+                    <span class="h-px flex-1 bg-gray-800"></span>
+                    <span>O continúa con</span>
+                    <span class="h-px flex-1 bg-gray-800"></span>
+                </div>
+
+                <button type="button" id="toggle-role" class="w-full py-3 bg-[#071932] border border-[#1d416d] hover:border-amber-400 text-gray-200 font-industrial uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-3">
+                    <i data-lucide="users-round" class="w-5 h-5 text-gray-300"></i>
+                    Acceso por roles
+                </button>
 
                 <div class="text-center pt-2 text-xs text-gray-400">
                     ¿No tienes cuenta? 
@@ -211,6 +234,22 @@
 
     <script>
         lucide.createIcons();
+
+        const rolePanel = document.getElementById('role-panel');
+        const roleSelect = document.getElementById('rol');
+        roleSelect.required = true;
+        document.getElementById('toggle-role').addEventListener('click', () => {
+            rolePanel.classList.toggle('hidden');
+            roleSelect.required = !rolePanel.classList.contains('hidden');
+        });
+
+        document.getElementById('toggle-password').addEventListener('click', (event) => {
+            const password = document.getElementById('password');
+            const icon = event.currentTarget.querySelector('i');
+            password.type = password.type === 'password' ? 'text' : 'password';
+            icon.setAttribute('data-lucide', password.type === 'password' ? 'eye' : 'eye-off');
+            lucide.createIcons();
+        });
     </script>
 </body>
 </html>

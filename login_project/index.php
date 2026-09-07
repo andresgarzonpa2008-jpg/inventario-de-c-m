@@ -34,7 +34,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
         $username = trim($_POST["username"] ?? '');
         $password = trim($_POST["password"] ?? '');
         $rol = trim($_POST["rol"] ?? 'cliente');
-        $roles_validos = ['usuario', 'cliente'];
+        $roles_validos = ['usuario', 'cliente', 'gerente'];
 
         if (!in_array($rol, $roles_validos, true)) {
             $error = "El rol seleccionado no es válido.";
@@ -130,20 +130,25 @@ if (isset($_GET["action"]) && $_GET["action"] === "dashboard_data" && isset($_SE
     header('Content-Type: application/json; charset=utf-8');
     try {
         $db = (new Conexion())->conn;
-        $productStats = $db->query('SELECT COUNT(*) AS products, COALESCE(SUM(PRO_stock_actual <= PRO_stock_minimo), 0) AS low FROM productos')->fetch(PDO::FETCH_ASSOC);
+        $productStats = $db->query('SELECT COUNT(*) AS products, COALESCE(SUM(PRO_stock_actual), 0) AS units, COALESCE(SUM(PRO_stock_actual <= PRO_stock_minimo), 0) AS low FROM productos')->fetch(PDO::FETCH_ASSOC);
         $data = [
-            'sales' => 0,
+            'todaySales' => 0,
+            'weekSales' => 0,
+            'monthSales' => 0,
             'pending' => 0,
             'products' => (int) ($productStats['products'] ?? 0),
+            'stockUnits' => (int) ($productStats['units'] ?? 0),
             'low' => (int) ($productStats['low'] ?? 0),
             'weekly' => array_fill(0, 7, 0),
             'monthly' => array_fill(0, 6, 0),
         ];
         $hasSales = (bool) $db->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'ventas'")->fetchColumn();
         if ($hasSales) {
-            $summary = $db->query("SELECT COALESCE(SUM(CASE WHEN MONTH(fecha_venta)=MONTH(CURRENT_DATE()) AND YEAR(fecha_venta)=YEAR(CURRENT_DATE()) AND estado <> 'Cancelada' THEN total ELSE 0 END),0) AS sales, COALESCE(SUM(estado='Pendiente'),0) AS pending FROM ventas")->fetch(PDO::FETCH_ASSOC);
-            $data['sales'] = (float) ($summary['sales'] ?? 0);
-            $data['pending'] = (int) ($summary['pending'] ?? 0);
+            $salesSummary = $db->query("SELECT COALESCE(SUM(CASE WHEN DATE(fecha_venta)=CURRENT_DATE() AND estado <> 'Cancelada' THEN total ELSE 0 END),0) AS today_sales, COALESCE(SUM(CASE WHEN YEARWEEK(fecha_venta, 1)=YEARWEEK(CURRENT_DATE(), 1) AND estado <> 'Cancelada' THEN total ELSE 0 END),0) AS week_sales, COALESCE(SUM(CASE WHEN MONTH(fecha_venta)=MONTH(CURRENT_DATE()) AND YEAR(fecha_venta)=YEAR(CURRENT_DATE()) AND estado <> 'Cancelada' THEN total ELSE 0 END),0) AS month_sales FROM ventas")->fetch(PDO::FETCH_ASSOC);
+            $data['todaySales'] = (float) ($salesSummary['today_sales'] ?? 0);
+            $data['weekSales'] = (float) ($salesSummary['week_sales'] ?? 0);
+            $data['monthSales'] = (float) ($salesSummary['month_sales'] ?? 0);
+            $data['pending'] = (int) $db->query("SELECT COALESCE(SUM(estado='Pendiente'),0) FROM ventas")->fetchColumn();
             $stmt = $db->query("SELECT WEEKDAY(fecha_venta) AS day_index, SUM(total) AS amount FROM ventas WHERE fecha_venta >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY) AND estado <> 'Cancelada' GROUP BY WEEKDAY(fecha_venta)");
             foreach ($stmt as $row) { $index = (int) $row['day_index']; if ($index >= 0 && $index < 7) $data['weekly'][$index] = (float) $row['amount']; }
             $stmt = $db->query("SELECT PERIOD_DIFF(EXTRACT(YEAR_MONTH FROM CURRENT_DATE()), EXTRACT(YEAR_MONTH FROM fecha_venta)) AS month_index, SUM(total) AS amount FROM ventas WHERE fecha_venta >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 MONTH) AND estado <> 'Cancelada' GROUP BY month_index");
