@@ -108,8 +108,6 @@ try {
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                         <li><a class="dropdown-item" href="index.php?action=usuario&section=perfil">Mi Perfil</a></li>
-                        <li><a class="dropdown-item" href="#!">Medios de Pago</a></li>
-                        <li><hr class="dropdown-divider" /></li>
                         <li><a class="dropdown-item" href="index.php?action=logout">Cerrar sesión</a></li>
                     </ul>
                 </li>
@@ -153,7 +151,7 @@ try {
                     </div>
                     <div class="sb-sidenav-footer">
                         <div class="small">Inició sesión como:</div>
-                        Cliente / Industrial
+                        Clientes
                     </div>
                 </nav>
             </div>
@@ -251,10 +249,10 @@ try {
                                             <tr data-stock="<?php echo (int) ($stockByName['Disco de Corte Fino 7 Pulgadas (C&M)'] ?? 0); ?>">
                                                 <th>Producto Abrasivo</th>
                                                 <th>Precio Unitario</th>
-                                                <th>Disponible</th>
+                                                <th>Estado</th>
                                                 <th style="width: 180px;">Cantidad</th>
                                                 <th>Subtotal</th>
-                                                <th>Acciones</th>
+                
                                             </tr>
                                         </thead>
                                         <tbody id="cartTableBody">
@@ -355,8 +353,10 @@ try {
                                         <table class="table table-striped table-bordered">
                                             <thead>
                                                 <tr>
-                                                    <th>Factura</th>
+                                                    <th>ID Factura</th>
                                                     <th>Fecha</th>
+                                                    <th>Tipo de pago</th>
+                                                    <th>Direccion de Envío</th>
                                                     <th>Total</th>
                                                     <th>Estado</th>
                                                 </tr>
@@ -365,12 +365,16 @@ try {
                                                 <tr>
                                                     <td>FAC-000891</td>
                                                     <td>10/08/2026</td>
+                                                    <td>Tarjeta de Crédito</td>
+                                                    <td>123 Calle Falsa, Ciudad</td>
                                                     <td>$ 1.250.000</td>
                                                     <td><span class="badge bg-success">Pagada</span></td>
                                                 </tr>
                                                 <tr>
                                                     <td>FAC-000892</td>
                                                     <td>02/09/2026</td>
+                                                    <td>Tarjeta de Débito</td>
+                                                    <td>456 Calle Verdadera, Ciudad</td>
                                                     <td>$ 830.000</td>
                                                     <td><span class="badge bg-danger">Pendiente</span></td>
                                                 </tr>
@@ -387,22 +391,28 @@ try {
                                         <i class="fas fa-credit-card me-1"></i>
                                         <strong>MEDIOS DE PAGO REGISTRADOS</strong>
                                     </div>
+                                    <div class="col-md-4 mb-3">
+                                            <label for="tipo_pago" class="form-label">Tipo de pago</label>
+                                            <select id="tipo_pago" name="tipo" class="form-select" required>
+                                                <option value="">Selecciona una opción</option>
+                                                <option>nequi</option>
+                                                <option>Tarjeta de Débito</option>
+                                                <option>banclombia</option>
+                                            </select>
+                                        </div>
                                     <div class="card-body">
                                         <ul class="list-group mb-3">
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <i class="fab fa-cc-visa text-primary fa-lg me-2"></i> Tarjeta Crédito terminada en <strong>4321</strong>
-                                                </div>
                                                 <span class="badge bg-primary rounded-pill">Principal</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <div>
-                                                    <i class="fas fa-university text-secondary fa-lg me-2"></i> PSE / Cuenta Bancolombia
+                                                    <i class="fas fa-university text-secondary fa-lg me-2"></i> nequi/ terjeta de debito/ Cuenta Bancolombia
                                                 </div>
                                                 <button class="btn btn-sm btn-outline-secondary">Editar</button>
                                             </li>
                                         </ul>
-                                        <button class="btn btn-outline-dark btn-sm w-100"><i class="fas fa-plus"></i> Agregar Nuevo Medio de Pago</button>
+                                        <button class="btn btn-outline-dark btn-sm w-100"><i class="fas fa-plus"></i>Proceder con el pago</button>
                                     </div>
                                 </div>
                             </div>
