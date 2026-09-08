@@ -142,9 +142,6 @@
                                 <option value="gerente" class="bg-[#131927] text-white">Gerente</option>
                                 <option value="cliente" class="bg-[#131927] text-white">Cliente</option>
                                 <option value="proveedor" class="bg-[#131927] text-white">Proveedor</option>
-                                <option value="inventario" class="bg-[#131927] text-white">Gestor de Inventario / Almacén</option>
-                                <option value="usuario" class="bg-[#131927] text-white">Usuario Estándar</option>
-                                <option value="admin" class="bg-[#131927] text-white">Administrador</option>
                             </select>
                             <span class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-500 pointer-events-none">
                                 <i data-lucide="chevron-down" class="w-4 h-4"></i>

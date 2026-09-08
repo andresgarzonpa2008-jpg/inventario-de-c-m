@@ -1,4 +1,26 @@
 <?php
+$perfil_cliente = [
+    'USU_documento_identidad' => '',
+    'PFL_historial_compra' => '',
+    'PFL_productos_favoritos' => '',
+    'PFL_fecha_compra' => '',
+    'PFL_estado_pedidos' => '',
+];
+$productosFavoritos = [];
+
+try {
+    $db = (new Conexion())->conn;
+    $stmt = $db->prepare('SELECT USU_documento_identidad, PFL_historial_compra, PFL_productos_favoritos, PFL_fecha_compra, PFL_estado_pedidos FROM perfil_cliente WHERE USU_documento_identidad = :documento LIMIT 1');
+    $stmt->execute([':documento' => $_SESSION['user']['documento_id'] ?? '']);
+    $perfil_cliente = array_merge($perfil_cliente, $stmt->fetch(PDO::FETCH_ASSOC) ?: []);
+
+    $stmt = $db->prepare('SELECT p.PRO_nombre_producto, p.PRO_marca, p.PRO_precio_unitario FROM auditoria_favoritos af INNER JOIN productos p ON p.PRO_codigo = af.producto WHERE af.usuario = :usuario ORDER BY af.fecha DESC');
+    $stmt->execute([':usuario' => $_SESSION['user']['documento_id'] ?? '']);
+    $productosFavoritos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $exception) {
+    $perfil_cliente['USU_documento_identidad'] = $_SESSION['user']['documento_id'] ?? '';
+}
+
 // Procesar actualización de perfil
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["action"] === "actualizar_perfil") {
     $nombre = trim($_POST["nombre"] ?? '');
@@ -42,11 +64,142 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
 }
 ?>
 
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Mi Perfil</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item active">Gestionar información personal</li>
-    </ol>
+<style>
+    .profile-page {
+        --profile-black: #17191c;
+        --profile-yellow: #f5c400;
+        --profile-white: #ffffff;
+        --profile-gray: #f2f3f5;
+        min-height: 100vh;
+        padding: 2rem 1.5rem 3rem;
+        background: var(--profile-gray);
+        color: var(--profile-black);
+    }
+
+    .profile-page .profile-heading {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 1.5rem 1.75rem;
+        border-left: 8px solid var(--profile-yellow);
+        border-radius: 8px;
+        background: var(--profile-black);
+        color: var(--profile-white);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, .14);
+    }
+
+    .profile-page .profile-heading h1 {
+        margin: 0;
+        font-size: clamp(1.7rem, 3vw, 2.35rem);
+        font-weight: 800;
+    }
+
+    .profile-page .profile-heading i {
+        color: var(--profile-yellow);
+        font-size: 2rem;
+    }
+
+    .profile-page .breadcrumb {
+        margin: 0;
+        color: #d7d7d7;
+    }
+
+    .profile-page .card {
+        overflow: hidden;
+        border: 1px solid #dedede;
+        border-radius: 8px;
+        background: var(--profile-white);
+        box-shadow: 0 5px 14px rgba(0, 0, 0, .08);
+    }
+
+    .profile-page .card-header {
+        border: 0;
+        border-bottom: 4px solid var(--profile-yellow);
+        background: var(--profile-black);
+        color: var(--profile-white);
+        font-weight: 700;
+        letter-spacing: .02em;
+    }
+
+    .profile-page .card-header i {
+        margin-right: .5rem;
+        color: var(--profile-yellow);
+    }
+
+    .profile-page .form-label {
+        color: var(--profile-black);
+        font-size: .88rem;
+        font-weight: 700;
+    }
+
+    .profile-page .form-control {
+        border: 1px solid #c9c9c9;
+        border-radius: 5px;
+        background: #fff;
+    }
+
+    .profile-page .form-control:focus {
+        border-color: var(--profile-yellow);
+        box-shadow: 0 0 0 .2rem rgba(245, 196, 0, .25);
+    }
+
+    .profile-page .btn-primary,
+    .profile-page .btn-warning {
+        border-color: var(--profile-yellow);
+        background: var(--profile-yellow);
+        color: var(--profile-black);
+        font-weight: 700;
+    }
+
+    .profile-page .btn-primary:hover,
+    .profile-page .btn-warning:hover {
+        border-color: #d6aa00;
+        background: #d6aa00;
+        color: var(--profile-black);
+    }
+
+    .profile-page .btn-secondary {
+        border-color: var(--profile-black);
+        background: var(--profile-black);
+        color: var(--profile-white);
+    }
+
+    .profile-page .list-group-item {
+        border-color: #e1e1e1;
+        background: var(--profile-white);
+    }
+
+    .profile-page .badge.bg-info {
+        background: var(--profile-yellow) !important;
+        color: var(--profile-black) !important;
+    }
+
+    .profile-page .profile-value {
+        color: #4d4d4d;
+    }
+
+    @media (max-width: 575.98px) {
+        .profile-page {
+            padding: 1rem .75rem 2rem;
+        }
+
+        .profile-page .profile-heading {
+            padding: 1.15rem;
+        }
+    }
+</style>
+
+<div class="container-fluid profile-page">
+    <div class="profile-heading">
+        <i class="fas fa-user-circle"></i>
+        <div>
+            <h1>Mi Perfil</h1>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item active">Gestionar información personal</li>
+            </ol>
+        </div>
+    </div>
 
     <div class="row">
         <div class="col-lg-8">
@@ -123,6 +276,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
         </div>
 
         <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-shopping-bag"></i>
+                    Información de Compras y Pedidos
+                </div>
+                <div class="card-body">
+                    <p><strong>Documento asociado:</strong><br><?php echo htmlspecialchars($perfil_cliente['USU_documento_identidad'] ?: 'No registrado', ENT_QUOTES, 'UTF-8'); ?></p>
+                    <p><strong>Historial de compra:</strong><br><?php echo nl2br(htmlspecialchars($perfil_cliente['PFL_historial_compra'] ?: 'Sin compras registradas', ENT_QUOTES, 'UTF-8')); ?></p>
+                    <p><strong>Productos favoritos:</strong></p>
+                    <?php if ($productosFavoritos): ?>
+                        <ul class="list-group mb-3">
+                            <?php foreach ($productosFavoritos as $productoFavorito): ?>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><?php echo htmlspecialchars($productoFavorito['PRO_nombre_producto'], ENT_QUOTES, 'UTF-8'); ?><small class="d-block text-muted"><?php echo htmlspecialchars($productoFavorito['PRO_marca'] ?: 'C&M', ENT_QUOTES, 'UTF-8'); ?></small></span>
+                                    <strong>$ <?php echo number_format((float) $productoFavorito['PRO_precio_unitario'], 0, ',', '.'); ?></strong>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else: ?>
+                        <p><?php echo htmlspecialchars($perfil_cliente['PFL_productos_favoritos'] ?: 'Sin productos favoritos', ENT_QUOTES, 'UTF-8'); ?></p>
+                    <?php endif; ?>
+                    <p><strong>Fecha de compra:</strong><br><?php echo $perfil_cliente['PFL_fecha_compra'] ? date('d/m/Y', strtotime($perfil_cliente['PFL_fecha_compra'])) : 'Sin compras registradas'; ?></p>
+                    <p class="mb-0"><strong>Estado de pedidos:</strong><br><span class="badge bg-info text-dark"><?php echo htmlspecialchars($perfil_cliente['PFL_estado_pedidos'] ?: 'Sin pedidos registrados', ENT_QUOTES, 'UTF-8'); ?></span></p>
+                </div>
+            </div>
+
             <div class="card mb-4">
                 <div class="card-header">
                     <i class="fas fa-info-circle"></i>

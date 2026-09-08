@@ -1,10 +1,73 @@
 <?php
 require_once __DIR__ . '/../config/conexion.php';
 $catalogProducts = [];
+$pqrs = [];
+$pqrsMessage = '';
+$pqrsError = '';
+$stockByName = [];
+$favoriteProductIds = [];
+$favoriteMessage = '';
 try {
-    $catalogProducts = (new Conexion())->conn->query("SELECT PRO_codigo, PRO_nombre_producto, PRO_descripcion, PRO_marca, PRO_imagen_url, PRO_precio_unitario, PRO_stock_actual FROM productos ORDER BY PRO_codigo DESC")->fetchAll(PDO::FETCH_ASSOC);
+    $db = (new Conexion())->conn;
+    $catalogProducts = $db->query("SELECT PRO_codigo, PRO_nombre_producto, PRO_descripcion, PRO_marca, PRO_imagen_url, PRO_precio_unitario, PRO_stock_actual FROM productos ORDER BY PRO_codigo DESC")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($catalogProducts as $product) {
+        $stockByName[$product['PRO_nombre_producto']] = (int) $product['PRO_stock_actual'];
+    }
+
+    $favoriteUser = trim((string) ($_SESSION['user']['documento_id'] ?? ''));
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_favorite' && $favoriteUser !== '') {
+        $productId = (int) ($_POST['product_id'] ?? 0);
+        $stmt = $db->prepare('SELECT COUNT(*) FROM auditoria_favoritos WHERE usuario = :usuario AND producto = :producto');
+        $stmt->execute([':usuario' => $favoriteUser, ':producto' => $productId]);
+        if ((int) $stmt->fetchColumn() > 0) {
+            $stmt = $db->prepare('DELETE FROM auditoria_favoritos WHERE usuario = :usuario AND producto = :producto');
+            $favoriteMessage = 'Producto retirado de favoritos.';
+        } else {
+            $stmt = $db->prepare('INSERT INTO auditoria_favoritos (usuario, producto, fecha) VALUES (:usuario, :producto, NOW())');
+            $favoriteMessage = 'Producto agregado a favoritos.';
+        }
+        $stmt->execute([':usuario' => $favoriteUser, ':producto' => $productId]);
+    }
+
+    $stmt = $db->prepare('SELECT producto FROM auditoria_favoritos WHERE usuario = :usuario');
+    $stmt->execute([':usuario' => $favoriteUser]);
+    $favoriteProductIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+    $db->exec("CREATE TABLE IF NOT EXISTS pqrs (
+        id_pqrs INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        id_usuario INT NOT NULL,
+        tipo VARCHAR(80) NOT NULL,
+        descripcion TEXT NOT NULL,
+        estado ENUM('Pendiente', 'En revisión', 'Resuelta', 'Cancelada') NOT NULL DEFAULT 'Pendiente',
+        fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_pqrs_usuario (id_usuario),
+        INDEX idx_pqrs_estado (estado)
+    ) ENGINE=InnoDB");
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'crear_pqrs') {
+        $tipo = trim($_POST['tipo'] ?? '');
+        $descripcion = trim($_POST['descripcion'] ?? '');
+        $tiposValidos = ['Queja sobre producto', 'Reclamo por entrega', 'Sugerencia'];
+
+        if (in_array($tipo, $tiposValidos, true) && $descripcion !== '') {
+            $stmt = $db->prepare('INSERT INTO pqrs (id_usuario, tipo, descripcion) VALUES (:id_usuario, :tipo, :descripcion)');
+            $stmt->execute([
+                ':id_usuario' => (int) ($_SESSION['user']['id'] ?? 0),
+                ':tipo' => $tipo,
+                ':descripcion' => $descripcion,
+            ]);
+            $pqrsMessage = 'Tu PQRS fue enviada correctamente.';
+        } else {
+            $pqrsError = 'Selecciona un tipo y escribe la descripción de tu solicitud.';
+        }
+    }
+
+    $stmt = $db->prepare('SELECT id_pqrs, tipo, descripcion, estado, fecha_creacion FROM pqrs WHERE id_usuario = :id_usuario ORDER BY fecha_creacion DESC');
+    $stmt->execute([':id_usuario' => (int) ($_SESSION['user']['id'] ?? 0)]);
+    $pqrs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $exception) {
     $catalogProducts = [];
+    $pqrsError = 'No fue posible cargar tus PQRS en este momento.';
 }
 ?>
 <!DOCTYPE html>
@@ -24,7 +87,7 @@ try {
     <body class="sb-nav-fixed">
         <!-- Top Navbar -->
         <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
-            <a class="navbar-brand ps-3" href="index.html">C&M CLIENTES</a>
+            <a class="navbar-brand ps-3" href="index.php?action=cliente">C&M CLIENTES</a>
             <button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!">
                 <i class="fas fa-bars"></i>
             </button>
@@ -44,7 +107,7 @@ try {
                         <i class="fas fa-user fa-fw"></i>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item" href="#!">Mi Perfil</a></li>
+                        <li><a class="dropdown-item" href="index.php?action=usuario&section=perfil">Mi Perfil</a></li>
                         <li><a class="dropdown-item" href="#!">Medios de Pago</a></li>
                         <li><hr class="dropdown-divider" /></li>
                         <li><a class="dropdown-item" href="index.php?action=logout">Cerrar sesión</a></li>
@@ -60,7 +123,7 @@ try {
                     <div class="sb-sidenav-menu">
                         <div class="nav">
                             <div class="sb-sidenav-menu-heading">Menú Principal</div>
-                            <a class="nav-link active" href="index.html">
+                            <a class="nav-link active" href="index.php?action=cliente">
                                 <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
                                 Mi Panel
                             </a>
@@ -185,18 +248,20 @@ try {
                                 <div class="table-responsive">
                                     <table class="table table-bordered align-middle">
                                         <thead class="table-light">
-                                            <tr>
+                                            <tr data-stock="<?php echo (int) ($stockByName['Disco de Corte Fino 7 Pulgadas (C&M)'] ?? 0); ?>">
                                                 <th>Producto Abrasivo</th>
                                                 <th>Precio Unitario</th>
+                                                <th>Disponible</th>
                                                 <th style="width: 180px;">Cantidad</th>
                                                 <th>Subtotal</th>
                                                 <th>Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody id="cartTableBody">
-                                            <tr>
+                                            <tr data-stock="<?php echo (int) ($stockByName['Lija al Agua Grano 120 (Paquete x 10)'] ?? 0); ?>">
                                                 <td>Disco de Corte Fino 7 Pulgadas (C&M)</td>
                                                 <td>$ 45.000</td>
+                                                <td class="item-stock"><?php echo $stockByName['Disco de Corte Fino 7 Pulgadas (C&M)'] ?? 'No registrado'; ?></td>
                                                 <td>
                                                     <div class="input-group input-group-sm">
                                                         <button class="btn btn-outline-secondary" type="button" onclick="changeQty(this, -1)">-</button>
@@ -212,6 +277,7 @@ try {
                                             <tr>
                                                 <td>Lija al Agua Grano 120 (Paquete x 10)</td>
                                                 <td>$ 25.000</td>
+                                                <td class="item-stock"><?php echo $stockByName['Lija al Agua Grano 120 (Paquete x 10)'] ?? 'No registrado'; ?></td>
                                                 <td>
                                                     <div class="input-group input-group-sm">
                                                         <button class="btn btn-outline-secondary" type="button" onclick="changeQty(this, -1)">-</button>
@@ -241,6 +307,7 @@ try {
                                 <strong>CATÁLOGO DE PRODUCTOS ABRASIVOS</strong>
                             </div>
                             <div class="card-body">
+                                <?php if ($favoriteMessage): ?><div class="alert alert-success py-2"><?php echo htmlspecialchars($favoriteMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
                                 <div class="row">
                                     <?php foreach ($catalogProducts as $product):
                                         $productName = htmlspecialchars($product['PRO_nombre_producto'], ENT_QUOTES, 'UTF-8');
@@ -258,7 +325,14 @@ try {
                                                     <h5 class="card-title mt-1"><?php echo $productName; ?></h5>
                                                     <p class="card-text text-muted small flex-grow-1"><?php echo $description; ?></p>
                                                     <div class="d-flex justify-content-between align-items-center mb-3"><strong class="text-success">$ <?php echo number_format($price, 0, ',', '.'); ?></strong><span class="badge <?php echo $stock > 0 ? 'bg-success' : 'bg-secondary'; ?>"><?php echo $stock > 0 ? $stock . ' disponibles' : 'Agotado'; ?></span></div>
-                                                    <button class="btn btn-outline-primary btn-sm" <?php echo $stock > 0 ? '' : 'disabled'; ?> onclick="addToCart('<?php echo addslashes($product['PRO_nombre_producto']); ?>', <?php echo $price; ?>)"><i class="fas fa-cart-plus"></i> <?php echo $stock > 0 ? 'Agregar al Carrito' : 'Sin existencias'; ?></button>
+                                                    <div class="d-flex gap-2">
+                                                        <button class="btn btn-outline-primary btn-sm flex-grow-1" <?php echo $stock > 0 ? '' : 'disabled'; ?> onclick="addToCart('<?php echo addslashes($product['PRO_nombre_producto']); ?>', <?php echo $price; ?>, <?php echo $stock; ?>)"><i class="fas fa-cart-plus"></i> <?php echo $stock > 0 ? 'Agregar al Carrito' : 'Sin existencias'; ?></button>
+                                                        <form method="POST" action="index.php?action=cliente#catalogo">
+                                                            <input type="hidden" name="action" value="toggle_favorite">
+                                                            <input type="hidden" name="product_id" value="<?php echo (int) $product['PRO_codigo']; ?>">
+                                                            <button class="btn <?php echo in_array((int) $product['PRO_codigo'], $favoriteProductIds, true) ? 'btn-danger' : 'btn-outline-danger'; ?> btn-sm" type="submit" title="<?php echo in_array((int) $product['PRO_codigo'], $favoriteProductIds, true) ? 'Quitar de favoritos' : 'Agregar a favoritos'; ?>"><i class="fas fa-heart"></i></button>
+                                                        </form>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -341,23 +415,57 @@ try {
                                 <strong>CENTRO DE SOPORTE Y QUEJAS (PQRS)</strong>
                             </div>
                             <div class="card-body">
-                                <form>
+                                <?php if ($pqrsMessage): ?><div class="alert alert-success"><?php echo htmlspecialchars($pqrsMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+                                <?php if ($pqrsError): ?><div class="alert alert-danger"><?php echo htmlspecialchars($pqrsError, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+                                <form method="POST" action="index.php?action=cliente#quejas">
+                                    <input type="hidden" name="action" value="crear_pqrs">
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Tipo de Solicitud</label>
-                                            <select class="form-select">
+                                            <label for="tipoPqrs" class="form-label">Tipo de Solicitud</label>
+                                            <select id="tipoPqrs" name="tipo" class="form-select" required>
+                                                <option value="">Selecciona una opción</option>
                                                 <option>Queja sobre producto</option>
                                                 <option>Reclamo por entrega</option>
                                                 <option>Sugerencia</option>
                                             </select>
                                         </div>
                                         <div class="col-md-8 mb-3">
-                                            <label class="form-label">Descripción del caso</label>
-                                            <input type="text" class="form-control" placeholder="Detalle su solicitud...">
+                                            <label for="descripcionPqrs" class="form-label">Descripción del caso</label>
+                                            <textarea id="descripcionPqrs" name="descripcion" class="form-control" rows="2" placeholder="Detalle su solicitud..." required></textarea>
                                         </div>
                                     </div>
                                     <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i> Enviar PQRS</button>
                                 </form>
+                                <hr>
+                                <h5 class="mb-3">Mis quejas y solicitudes</h5>
+                                <?php if ($pqrs): ?>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered align-middle mb-0">
+                                            <thead class="table-light">
+                                                <tr><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($pqrs as $item):
+                                                    $statusClass = match ($item['estado']) {
+                                                        'Resuelta' => 'bg-success',
+                                                        'Cancelada' => 'bg-danger',
+                                                        'En revisión' => 'bg-warning text-dark',
+                                                        default => 'bg-secondary',
+                                                    };
+                                                ?>
+                                                    <tr>
+                                                        <td><?php echo htmlspecialchars($item['tipo'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                                        <td><?php echo htmlspecialchars($item['descripcion'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                                        <td><?php echo date('d/m/Y H:i', strtotime($item['fecha_creacion'])); ?></td>
+                                                        <td><span class="badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($item['estado'], ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="alert alert-info mb-0">Todavía no tienes quejas o solicitudes registradas.</div>
+                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -407,9 +515,12 @@ try {
                 let input = btn.parentElement.querySelector('.item-qty');
                 let currentVal = parseInt(input.value);
                 let newVal = currentVal + delta;
-                if (newVal >= 1) {
+                let available = parseInt(btn.closest('tr').dataset.stock || '0');
+                if (newVal >= 1 && newVal <= available) {
                     input.value = newVal;
                     updateCartTotal();
+                } else if (delta > 0) {
+                    alert('No hay más unidades disponibles de este producto.');
                 }
             }
 
@@ -419,19 +530,26 @@ try {
                 updateCartTotal();
             }
 
-            function addToCart(productName, price) {
+            function addToCart(productName, price, stock) {
                 let tbody = document.getElementById('cartTableBody');
                 
                 // Verificar si ya existe para sumarle 1
                 let existingRow = Array.from(tbody.querySelectorAll('tr')).find(row => row.children[0].innerText === productName);
                 if (existingRow) {
                     let qtyInput = existingRow.querySelector('.item-qty');
-                    qtyInput.value = parseInt(qtyInput.value) + 1;
+                    let currentQty = parseInt(qtyInput.value);
+                    if (currentQty >= stock) {
+                        alert('No hay más unidades disponibles de este producto.');
+                        return;
+                    }
+                    qtyInput.value = currentQty + 1;
                 } else {
                     let newRow = document.createElement('tr');
+                    newRow.dataset.stock = stock;
                     newRow.innerHTML = `
                         <td>${productName}</td>
                         <td>$ ${price.toLocaleString('es-CO')}</td>
+                        <td class="item-stock">${stock}</td>
                         <td>
                             <div class="input-group input-group-sm">
                                 <button class="btn btn-outline-secondary" type="button" onclick="changeQty(this, -1)">-</button>
