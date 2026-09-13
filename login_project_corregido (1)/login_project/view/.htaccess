@@ -1,0 +1,10 @@
+# Bloquea el acceso web DIRECTO a las vistas (ej. .../view/gerente_sbadm.php).
+# El router (index.php) las sigue pudiendo usar con require_once porque eso
+# es una inclusion de archivo en PHP, no pasa por Apache/.htaccess.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

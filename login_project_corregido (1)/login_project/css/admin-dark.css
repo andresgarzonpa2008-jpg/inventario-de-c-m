@@ -1,0 +1,256 @@
+/* ============================================================
+   Tema oscuro industrial C&M  ->  grafito/pizarra + ámbar
+   Se carga DESPUÉS de css/styles.css para sobreescribir el tema
+   claro genérico de SB Admin y unificar todos los paneles.
+   ============================================================ */
+
+:root {
+  --cm-grafito: #121212;
+  --cm-pizarra: #1D2D35;
+  --cm-pizarra-light: #2A3D47;
+  --cm-industrial: #FFC800;
+  --cm-industrial-brillo: #FFD94A;
+  --cm-industrial-oscuro: #E0AF00;
+  --cm-muted: #7E9099;
+  --cm-fondo: #0A0F15;
+  --cm-superficie: #141D26;
+  --cm-superficie-2: #1B2733;
+  --cm-borde: #2A3A46;
+  --cm-texto: #E8EEF3;
+}
+
+/* ---------- Fondo general y zona de contenido ---------- */
+body {
+  background-color: var(--cm-fondo);
+  color: var(--cm-texto);
+}
+body.sb-nav-fixed #layoutSidenav_content main {
+  background: radial-gradient(circle at 92% 0%, rgba(255, 200, 0, .08), transparent 26rem), var(--cm-fondo);
+  min-height: calc(100vh - 56px);
+}
+
+/* ---------- Barra superior ---------- */
+.sb-topnav.navbar { background-color: var(--cm-grafito); }
+.sb-topnav .navbar-brand {
+  color: var(--cm-industrial) !important;
+  font-weight: 800;
+}
+.sb-topnav .navbar-brand:hover { color: var(--cm-industrial-brillo); }
+.sb-topnav.navbar-dark #sidebarToggle { color: var(--cm-industrial); }
+.sb-topnav .nav-link.dropdown-toggle { color: #cfd8de; }
+
+/* ---------- Barra lateral ---------- */
+.sb-sidenav-dark {
+  background-color: var(--cm-grafito);
+  color: #cbd5e1;
+  border-right: 1px solid var(--cm-borde);
+}
+.sb-sidenav-dark .sb-sidenav-menu .sb-sidenav-menu-heading { color: var(--cm-muted); }
+.sb-sidenav-dark .sb-sidenav-menu .nav-link { color: #A9B7C3; }
+.sb-sidenav-dark .sb-sidenav-menu .nav-link .sb-nav-link-icon { color: var(--cm-industrial); }
+.sb-sidenav-dark .sb-sidenav-menu .nav-link:hover {
+  background-color: var(--cm-pizarra-light);
+  color: #ffffff;
+}
+.sb-sidenav-dark .sb-sidenav-menu .nav-link.active {
+  background-color: var(--cm-pizarra);
+  color: var(--cm-industrial-brillo);
+  position: relative;
+}
+.sb-sidenav-dark .sb-sidenav-menu .nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--cm-industrial);
+}
+.sb-sidenav-dark .sb-sidenav-menu .nav-link.active .sb-nav-link-icon { color: var(--cm-industrial-brillo); }
+.sb-sidenav-dark .sb-sidenav-footer {
+  background-color: var(--cm-pizarra);
+  color: #E8EEF3;
+  border-top: 1px solid var(--cm-borde);
+}
+
+/* ---------- Tarjetas ---------- */
+body .card:not(.kpi-card):not(.bg-primary):not(.bg-secondary):not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info):not(.bg-dark):not(.bg-light) {
+  background: var(--cm-superficie);
+  border-color: var(--cm-borde);
+  color: var(--cm-texto);
+}
+body .card:not(.kpi-card) .card-header {
+  background: var(--cm-superficie-2);
+  border-bottom: 1px solid var(--cm-borde);
+  color: var(--cm-texto);
+}
+body .card.chart-card,
+body .card.chart-card .card-header {
+  background: var(--cm-superficie);
+  border-color: var(--cm-borde);
+  color: var(--cm-texto);
+}
+body .card.chart-card .chart-status { color: var(--cm-muted); }
+body .card .card-footer:not(.kpi-card .card-footer) {
+  background: var(--cm-superficie-2);
+  border-top: 1px solid var(--cm-borde);
+}
+
+/* ---------- Tablas ---------- */
+body .table { color: var(--cm-texto); }
+body .table > :not(caption) > * > * { border-color: var(--cm-borde); }
+body .table thead th { border-bottom-color: var(--cm-borde); }
+body .table-hover > tbody > tr:hover > * { background-color: rgba(255, 200, 0, .07); }
+body .table-striped > tbody > tr:nth-of-type(odd) > * { background-color: rgba(255, 255, 255, .045); }
+body .table-dark {
+  background-color: var(--cm-pizarra);
+  color: #fff;
+}
+body .table-dark th, body .table-dark td, body .table-dark thead th { border-color: var(--cm-borde); }
+body .table-responsive .datatable-table thead th { background-color: var(--cm-pizarra); color: #fff; }
+body .datatable-table tbody td { color: var(--cm-texto); }
+body .datatable-input,
+body .datatable-dropdown select {
+  background-color: #0F1722;
+  border-color: var(--cm-borde);
+  color: var(--cm-texto);
+}
+body .datatable-pagination .datatable-active a {
+  background-color: var(--cm-industrial);
+  color: #111;
+}
+
+/* ---------- Botones ---------- */
+.btn-primary {
+  --bs-btn-bg: var(--cm-industrial);
+  --bs-btn-border-color: var(--cm-industrial);
+  --bs-btn-color: #111;
+  --bs-btn-hover-bg: var(--cm-industrial-brillo);
+  --bs-btn-hover-border-color: var(--cm-industrial-brillo);
+  --bs-btn-hover-color: #111;
+  --bs-btn-active-bg: var(--cm-industrial-oscuro);
+  --bs-btn-active-border-color: var(--cm-industrial-oscuro);
+  --bs-btn-active-color: #111;
+  --bs-btn-disabled-bg: #6B5D22;
+  --bs-btn-disabled-border-color: #6B5D22;
+  --bs-btn-disabled-color: #D8C97F;
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--cm-industrial);
+  --bs-btn-border-color: var(--cm-industrial);
+  --bs-btn-hover-bg: var(--cm-industrial);
+  --bs-btn-hover-border-color: var(--cm-industrial);
+  --bs-btn-hover-color: #111;
+  --bs-btn-active-bg: var(--cm-industrial-oscuro);
+  --bs-btn-active-border-color: var(--cm-industrial-oscuro);
+  --bs-btn-active-color: #111;
+}
+.btn-secondary {
+  --bs-btn-bg: var(--cm-pizarra-light);
+  --bs-btn-border-color: var(--cm-pizarra-light);
+  --bs-btn-color: #fff;
+  --bs-btn-hover-bg: var(--cm-pizarra);
+  --bs-btn-hover-border-color: var(--cm-pizarra);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: var(--cm-pizarra);
+  --bs-btn-active-color: #fff;
+}
+.btn-warning { --bs-btn-color: #111; font-weight: 600; }
+.btn-link { color: var(--cm-industrial); }
+
+/* ---------- Superficies ámbar: el ámbar exige texto OSCURO ---------- */
+body .badge.bg-warning {
+  background-color: var(--cm-industrial) !important;
+  color: #111 !important;
+  border: 1px solid var(--cm-industrial-oscuro);
+  font-weight: 700;
+}
+body .card.bg-warning {
+  background-color: var(--cm-industrial) !important;
+  border-color: var(--cm-industrial-oscuro);
+}
+body .card.bg-warning .card-body,
+body .card.bg-warning .card-title,
+body .card.bg-warning .card-text,
+body .card.bg-warning .fs-1,
+body .card.bg-warning .fs-2,
+body .card.bg-warning .fs-3,
+body .card.bg-warning .fw-bold {
+  color: #111 !important;
+}
+
+/* ---------- Formularios ---------- */
+.form-label, label { color: var(--cm-texto); }
+.form-control, .form-select {
+  background-color: #0F1722;
+  border-color: var(--cm-borde);
+  color: var(--cm-texto);
+}
+.form-control:focus, .form-select:focus {
+  background-color: #0F1722;
+  border-color: var(--cm-industrial);
+  color: var(--cm-texto);
+  box-shadow: 0 0 0 .2rem rgba(255, 200, 0, .22);
+}
+.form-control::placeholder { color: var(--cm-muted); }
+.form-control:disabled { background-color: #10161D; }
+.input-group-text {
+  background-color: var(--cm-superficie-2);
+  border-color: var(--cm-borde);
+  color: var(--cm-texto);
+}
+.form-check-input:checked {
+  background-color: var(--cm-industrial);
+  border-color: var(--cm-industrial);
+}
+
+/* ---------- Alertas ---------- */
+.alert-success { background-color: #13281B; border-color: #1F5231; color: #A9E6C0; }
+.alert-danger  { background-color: #331A17; border-color: #6E2B25; color: #F3BDB9; }
+.alert-warning { background-color: #332A12; border-color: #6D5B1F; color: #F5E09A; }
+.alert-info    { background-color: #142631; border-color: #26495E; color: #ADD8EE; }
+.alert .btn-close { filter: invert(1) grayscale(100%); }
+
+/* ---------- Textos y encabezados ---------- */
+h1, h2, h3, h4, h5, h6 { color: var(--cm-texto); }
+.text-muted { color: var(--cm-muted) !important; }
+.text-white-50 { color: rgba(255, 255, 255, .55); }
+
+/* ---------- Enlaces, migas de pan, paginación ---------- */
+a:not(.btn):not(.nav-link):not(.dropdown-item):not(.navbar-brand):not(.page-link) { color: var(--cm-industrial); }
+a:not(.btn):not(.nav-link):not(.dropdown-item):not(.navbar-brand):not(.page-link):hover { color: var(--cm-industrial-brillo); }
+.breadcrumb-item a, .breadcrumb-item.home a { color: var(--cm-industrial); }
+.breadcrumb-item.active { color: var(--cm-texto); }
+.breadcrumb-item + .breadcrumb-item::before { color: var(--cm-muted); }
+.page-item .page-link {
+  background-color: var(--cm-superficie);
+  border-color: var(--cm-borde);
+  color: var(--cm-texto);
+}
+.page-item .page-link:hover { background-color: var(--cm-pizarra-light); border-color: var(--cm-borde); color: #fff; }
+.page-item.active .page-link {
+  background-color: var(--cm-industrial);
+  border-color: var(--cm-industrial);
+  color: #111;
+}
+
+/* ---------- Menús desplegables y modales ---------- */
+.dropdown-menu {
+  background-color: var(--cm-superficie);
+  border-color: var(--cm-borde);
+}
+.dropdown-menu .dropdown-item { color: var(--cm-texto); }
+.dropdown-menu .dropdown-item:hover, .dropdown-menu .dropdown-item:focus {
+  background-color: var(--cm-pizarra);
+  color: #fff;
+}
+.dropdown-divider { border-color: var(--cm-borde); }
+.modal-content {
+  background-color: var(--cm-superficie);
+  border-color: var(--cm-borde);
+  color: var(--cm-texto);
+}
+.modal-header { border-bottom-color: var(--cm-borde); }
+.modal-footer { border-top-color: var(--cm-borde); }
+
+/* ---------- Panel de usuarios (fragmentos con layout) ---------- */
+footer.py-4 { background-color: var(--cm-superficie); border-top: 1px solid var(--cm-borde); }
+.cm-footer-text { color: var(--cm-muted); }

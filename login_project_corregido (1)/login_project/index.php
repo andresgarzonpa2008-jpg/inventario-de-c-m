@@ -1,0 +1,472 @@
+<?php
+// Archivo: index.php
+require_once "controller/UsuarioController.php";
+require_once "config/csrf.php";
+require_once "config/session_guard.php";
+
+ini_set('session.use_strict_mode', '1');
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Lax',
+    'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+]);
+session_start();
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
+// Cierra la sesión automáticamente si pasaron más de 15 min sin actividad.
+// Las peticiones de fondo (AJAX de auto-refresco del dashboard) SOLO verifican
+// si la sesión ya expiró; NO renuevan last_activity. Así, un tab abierto con el
+// dashboard no impide el cierre por inactividad mientras el usuario no actúe.
+$accionActual = $_GET["action"] ?? null;
+session_guard_check($accionActual !== "dashboard_data");
+
+$controller = new UsuarioController();
+
+$error = "";
+$mensaje = "";
+
+// 1. Mensajes informativos por URL
+if (isset($_GET["mensaje"]) && $_GET["mensaje"] === "registrado") {
+    $mensaje = "¡Usuario registrado con éxito! Ya puedes iniciar sesión.";
+} elseif (isset($_GET["mensaje"]) && $_GET["mensaje"] === "sesion_expirada") {
+        $error = "Tu sesión expiró por inactividad. Vuelve a iniciar sesión.";
+    } elseif (isset($_GET["mensaje"]) && $_GET["mensaje"] === "recuperado") {
+        $mensaje = "¡Contraseña restablecida! Ya puedes iniciar sesión con tu nueva contraseña.";
+    }
+
+// 2. Procesar peticiones POST (Registro o Login)
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
+    csrf_verify();
+
+    // ACCIÓN DE REGISTRO
+    if ($_POST["action"] === "register") {
+        $nombre = trim($_POST["nombre"] ?? '');
+        $apellido = trim($_POST["apellido"] ?? '');
+        $documento_id = trim($_POST["documento_id"] ?? '');
+        $fecha_nacimiento = trim($_POST["fecha_nacimiento"] ?? '');
+        $correo = trim($_POST["correo"] ?? '');
+        $username = trim($_POST["username"] ?? '');
+        $password = trim($_POST["password"] ?? '');
+        $rol = trim($_POST["rol"] ?? 'cliente');
+        // Roles que un usuario puede elegir al auto-registrarse.
+        // Deben coincidir EXACTAMENTE con las <option> del <select> de
+        // view/register.php y con el ENUM de la columna usuarios.rol
+        // (gerente, admin e inventario quedan fuera a propósito: esos se
+        // asignan desde el panel de usuarios, no por auto-registro).
+        $roles_validos = ['cliente', 'proveedor'];
+
+        if (!in_array($rol, $roles_validos, true)) {
+            $error = "El rol seleccionado no es válido.";
+            require_once "view/register.php";
+            exit();
+        }
+
+        if (!empty($nombre) && !empty($apellido) && !empty($documento_id) && !empty($fecha_nacimiento) && !empty($correo) && !empty($username) && !empty($password)) {
+            if ($controller->registrar($nombre, $apellido, $documento_id, $fecha_nacimiento, $correo, $username, $password, $rol)) {
+                header("Location: index.php?action=login&mensaje=registrado");
+                exit();
+            } else {
+                $error = "No se pudo registrar. El usuario '" . htmlspecialchars($username) . "' ya existe o hubo un error en la base de datos.";
+                require_once "view/register.php";
+                exit();
+            }
+        } else {
+            $error = "Por favor completa todos los campos.";
+            require_once "view/register.php";
+            exit();
+        }
+    }
+
+    // ACCIÓN RECUPERAR: genera un token para restablecer la contraseña
+    if ($_POST["action"] === "recuperar") {
+        if (isset($_SESSION["user"])) {
+            header("Location: index.php");
+            exit();
+        }
+        require_once "config/conexion.php";
+        $db = (new Conexion())->conn;
+        $db->exec("CREATE TABLE IF NOT EXISTS password_resets (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            id_usuario INT NOT NULL,
+            token VARCHAR(64) NOT NULL,
+            expiracion DATETIME NOT NULL,
+            usado TINYINT(1) NOT NULL DEFAULT 0,
+            creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_pwr_token (token),
+            KEY idx_pwr_usuario (id_usuario)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+        $correo = trim($_POST["correo"] ?? '');
+        $mensajeRecuperar = '';
+        $mensajeRecuperarError = '';
+        $enlaceVisible = '';
+        if ($correo === '' || !filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+            $mensajeRecuperarError = 'Ingresa un correo electrónico válido.';
+        } else {
+            $stmt = $db->prepare('SELECT id, username FROM usuarios WHERE correo = :correo AND deleted_at IS NULL LIMIT 1');
+            $stmt->execute([':correo' => $correo]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($usuario) {
+                $token = bin2hex(random_bytes(32));
+                $db->prepare('UPDATE password_resets SET usado = 1 WHERE id_usuario = :id_usuario')->execute([':id_usuario' => $usuario['id']]);
+                $db->prepare('INSERT INTO password_resets (id_usuario, token, expiracion) VALUES (:id_usuario, :token, DATE_ADD(NOW(), INTERVAL 30 MINUTE))')
+                    ->execute([':id_usuario' => $usuario['id'], ':token' => $token]);
+
+                $esquema = (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === 'off') ? 'http' : 'https';
+                $baseUrl = $esquema . '://' . $_SERVER['HTTP_HOST'] . rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+                $enlace = $baseUrl . '/index.php?action=restablecer&token=' . $token;
+
+                $enviado = @mail(
+                    $correo,
+                    'Recuperación de contraseña - C&M Soluciones Abrasivas',
+                    "Hola {$usuario['username']},\n\nPara restablecer tu contraseña ingresa a:\n{$enlace}\n\nEl enlace expira en 30 minutos.\n\nC&M Soluciones Abrasivas SAS",
+                    "From: noresponder@cmyabrasivas.com\r\nContent-Type: text/plain; charset=UTF-8"
+                );
+
+                if ($enviado) {
+                    $mensajeRecuperar = 'Te enviamos un enlace de recuperación a tu correo. Revisa tu bandeja de entrada (o spam).';
+                } else {
+                    $mensajeRecuperar = 'No se pudo enviar el correo desde este servidor local. Usa el enlace de recuperación directamente:';
+                    $enlaceVisible = $enlace;
+                }
+            } else {
+                $mensajeRecuperar = 'Si el correo ingresado está registrado, recibirás el enlace de recuperación.';
+            }
+        }
+        require_once "view/recuperar.php";
+        exit();
+    }
+
+    // ACCIÓN RESTABLECER: guarda la contraseña nueva usando el token
+    if ($_POST["action"] === "restablecer") {
+        if (isset($_SESSION["user"])) {
+            header("Location: index.php");
+            exit();
+        }
+        require_once "config/conexion.php";
+        $db = (new Conexion())->conn;
+
+        $token = trim($_POST["token"] ?? '');
+        $password = trim($_POST["password"] ?? '');
+        $password2 = trim($_POST["password2"] ?? '');
+        $tokenRestablecer = $token;
+        $errorRestablecer = '';
+
+        if ($token === '' || mb_strlen($password) < 6 || $password !== $password2) {
+            $errorRestablecer = $token === ''
+                ? 'Enlace de recuperación inválido.'
+                : (mb_strlen($password) < 6 ? 'La contraseña debe tener al menos 6 caracteres.' : 'Las contraseñas no coinciden.');
+            require_once "view/restablecer.php";
+            exit();
+        }
+
+        $stmt = $db->prepare('SELECT id_usuario FROM password_resets WHERE token = :token AND usado = 0 AND expiracion > NOW() LIMIT 1');
+        $stmt->execute([':token' => $token]);
+        $fila = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$fila) {
+            $errorRestablecer = 'El enlace de recuperación no es válido, ya fue usado o expiró. Solicita uno nuevo.';
+            $tokenRestablecer = '';
+            require_once "view/restablecer.php";
+            exit();
+        }
+
+        $hash = password_hash($password, PASSWORD_BCRYPT);
+        $db->prepare('UPDATE usuarios SET password = :hash WHERE id = :id AND deleted_at IS NULL')
+            ->execute([':hash' => $hash, ':id' => $fila['id_usuario']]);
+        $db->prepare('UPDATE password_resets SET usado = 1 WHERE token = :token')->execute([':token' => $token]);
+
+        header("Location: index.php?action=login&mensaje=recuperado");
+        exit();
+    }
+
+    // ACCIÓN DE LOGIN CON VALIDACIÓN DE ROL EXACTO
+    if ($_POST["action"] === "login") {
+        $username = trim($_POST["username"] ?? '');
+        $password = trim($_POST["password"] ?? '');
+        $rol_seleccionado = trim($_POST["rol"] ?? '');
+
+        // Obtener usuario desde el controlador (debe incluir el campo 'rol' de la BD)
+        $user = $controller->login($username, $password);
+
+        if ($user) {
+            $rol_bd = strtolower(trim($user['rol'] ?? 'cliente'));
+            $rol_sel = strtolower(trim($rol_seleccionado));
+
+            // VERIFICACIÓN DE ROL: Si el rol seleccionado NO coincide con el de la Base de Datos
+            if ($rol_sel !== $rol_bd) {
+                $error = "Acceso denegado: Tu cuenta no tiene permisos para el rol de '" . htmlspecialchars($rol_seleccionado) . "'.";
+                require_once "view/login.php";
+                exit();
+            }
+
+            // Si coincide, guardamos en sesión y renovamos el identificador.
+            session_regenerate_id(true);
+            $_SESSION["user"] = $user;
+            $_SESSION["rol"] = $rol_bd;
+
+            // Redirección dinámica según el rol validado
+            switch ($rol_bd) {
+                case 'admin':
+                case 'gerente':
+                    header("Location: index.php?action=gerente");
+                    break;
+                case 'proveedor':
+                    header("Location: index.php?action=proveedor");
+                    break;
+                case 'inventario':
+                    header("Location: index.php?action=inventario");
+                    break;
+                case 'cliente':
+                    header("Location: index.php?action=cliente");
+                    break;
+                default:
+                    header("Location: index.php?action=usuario&section=home");
+                    break;
+            }
+            exit();
+        } else {
+            $error = "Usuario o contraseña incorrectos.";
+            require_once "view/login.php";
+            exit();
+        }
+    }
+
+    // ACCIÓN PROVEEDOR: ACTUALIZAR ESTADO DE UNA ORDEN DE COMPRA
+    if ($_POST["action"] === "actualizar_orden") {
+        $rol = $_SESSION['rol'] ?? '';
+        if (!in_array($rol, ['proveedor', 'gerente'], true)) { http_response_code(403); die('Sin permisos.'); }
+        require_once "config/conexion.php";
+        $db = (new Conexion())->conn;
+        $db->exec("CREATE TABLE IF NOT EXISTS orden_compra (ORD_id_orden INT NOT NULL, PVR_contacto VARCHAR(12) NOT NULL, ORD_fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, ORD_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente', ORD_total DECIMAL(10,2) DEFAULT NULL, ORD_retrasada TINYINT(1) NOT NULL DEFAULT 0, ORD_notas TEXT NULL) ENGINE=InnoDB");
+        $ordenId = (int) preg_replace('/[^0-9]/', '', trim($_POST['orden_id'] ?? ''));
+        $grano = trim($_POST['avance'] ?? 'P40');
+        $granoAEstado = ['P40' => 'pendiente', 'P80' => 'confirmado', 'P120' => 'en produccion', 'P180' => 'en transito', 'P220' => 'entregado'];
+        $estado = $granoAEstado[$grano] ?? 'pendiente';
+        $retrasada = (isset($_POST['retrasada']) && $_POST['retrasada'] === '1') ? 1 : 0;
+        $notas = trim($_POST['notas'] ?? '');
+        $msgOrden = 'Órden inválida.';
+        if ($ordenId > 0) {
+            try {
+                $stmt = $db->prepare('UPDATE orden_compra SET ORD_estado = :estado, ORD_retrasada = :retrasada, ORD_notas = :notas WHERE ORD_id_orden = :id');
+                $stmt->execute([':estado' => $estado, ':retrasada' => $retrasada, ':notas' => $notas !== '' ? $notas : null, ':id' => $ordenId]);
+                $msgOrden = $stmt->rowCount() > 0 ? "OC-$ordenId actualizada a estado '$estado'." : 'La órden no existe o no cambió de estado.';
+            } catch (Throwable $e) {
+                $msgOrden = 'Error al actualizar la órden.';
+            }
+        }
+        header("Location: index.php?action=proveedor&msg=" . urlencode($msgOrden));
+        exit();
+    }
+
+    // ACCIÓN PROVEEDOR: AGENDAR ENTREGA
+    if ($_POST["action"] === "agendar_entrega") {
+        $rol = $_SESSION['rol'] ?? '';
+        if (!in_array($rol, ['proveedor', 'gerente'], true)) { http_response_code(403); die('Sin permisos.'); }
+        require_once "config/conexion.php";
+        $db = (new Conexion())->conn;
+        $db->exec("CREATE TABLE IF NOT EXISTS despacho_bodega (DES_id INT NOT NULL, DES_direccion_envio VARCHAR(150) NOT NULL, DES_orden_bodega VARCHAR(50) NOT NULL, DES_id_confirmacion VARCHAR(50) NOT NULL, AUX_id INT DEFAULT NULL, estado VARCHAR(20) DEFAULT 'Pendiente', PED_id_pedido INT NOT NULL) ENGINE=InnoDB");
+        $ordenRaw = trim($_POST['orden'] ?? '');
+        $ordenEntrega = (int) preg_replace('/[^0-9]/', '', $ordenRaw);
+        $fecha = trim($_POST['fecha'] ?? '');
+        $destino = trim($_POST['destino'] ?? '');
+        $msgEntrega = 'Completa la orden, la fecha y el destino.';
+        if ($ordenEntrega > 0 && $fecha !== '' && $destino !== '') {
+            try {
+                $nextId = (int) $db->query('SELECT COALESCE(MAX(DES_id),0)+1 FROM despacho_bodega')->fetchColumn();
+                $confirmacion = 'CONFIRM-' . strtoupper(bin2hex(random_bytes(5)));
+                $estEntrega = (strtotime($fecha) <= strtotime(date('Y-m-d'))) ? 'Enviado' : 'Agendado';
+                $stmt = $db->prepare('INSERT INTO despacho_bodega (DES_id, DES_direccion_envio, DES_orden_bodega, DES_id_confirmacion, AUX_id, estado, PED_id_pedido) VALUES (?,?,?,?,NULL,?,0)');
+                $stmt->execute([$nextId, $destino, $ordenRaw, $confirmacion, $estEntrega]);
+                $msgEntrega = "Entrega para $ordenRaw agendada (" . date('d/m/Y', strtotime($fecha)) . ") a $destino.";
+            } catch (Throwable $e) {
+                $msgEntrega = 'Error al agendar la entrega.';
+            }
+        }
+        header("Location: index.php?action=proveedor&msg=" . urlencode($msgEntrega));
+        exit();
+    }
+
+    // ACCIÓN PROVEEDOR: SUBIR FACTURA PDF/XML
+    if ($_POST["action"] === "subir_factura") {
+        $rol = $_SESSION['rol'] ?? '';
+        if (!in_array($rol, ['proveedor', 'gerente'], true)) { http_response_code(403); die('Sin permisos.'); }
+        require_once "config/conexion.php";
+        $db = (new Conexion())->conn;
+        $db->exec("CREATE TABLE IF NOT EXISTS factura_orden_compra (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, ORD_id_orden INT NOT NULL, archivo VARCHAR(255) NOT NULL, fecha_subida DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, KEY idx_foc_orden (ORD_id_orden)) ENGINE=InnoDB");
+        $ordenId = (int) preg_replace('/[^0-9]/', '', trim($_POST['orden_id'] ?? ''));
+        $archivo = $_FILES['factura'] ?? null;
+        $msgFactura = 'Archivo inválido: usa PDF o XML de hasta 5 MB.';
+        if ($ordenId > 0 && $archivo && isset($archivo['error']) && (int) $archivo['error'] === UPLOAD_ERR_OK && (int) $archivo['size'] > 0 && (int) $archivo['size'] <= 5242880) {
+            $ext = strtolower(pathinfo($archivo['name'], PATHINFO_EXTENSION));
+            if (in_array($ext, ['pdf', 'xml'], true)) {
+                try {
+                    $dir = __DIR__ . '/uploads/facturas';
+                    if (!is_dir($dir)) { mkdir($dir, 0755, true); }
+                    $nombre = 'factura_OC' . $ordenId . '_' . date('Ymd_His') . '.' . $ext;
+                    if (move_uploaded_file($archivo['tmp_name'], $dir . DIRECTORY_SEPARATOR . $nombre)) {
+                        $stmt = $db->prepare('INSERT INTO factura_orden_compra (ORD_id_orden, archivo) VALUES (?,?)');
+                        $stmt->execute([$ordenId, 'uploads/facturas/' . $nombre]);
+                        $msgFactura = "Factura de OC-$ordenId subida correctamente.";
+                    }
+                } catch (Throwable $e) {
+                    $msgFactura = 'Error al guardar la factura.';
+                }
+            }
+        }
+        header("Location: index.php?action=proveedor&msg=" . urlencode($msgFactura));
+        exit();
+    }
+
+    // ACCIÓN ADMIN/GERENTE: CAMBIAR ESTADO DE UNA PQRS
+    if ($_POST["action"] === "actualizar_estado_pqrs") {
+        $rol = $_SESSION['rol'] ?? '';
+        if (!in_array($rol, ['gerente'], true)) { http_response_code(403); die('Sin permisos.'); }
+        require_once "config/conexion.php";
+        $db = (new Conexion())->conn;
+        $idPqrs = (int) ($_POST['id_pqrs'] ?? 0);
+        $estadoPqrs = trim($_POST['estado'] ?? '');
+        $estadosPqrs = ['Pendiente', 'En revisión', 'Resuelta', 'Cancelada'];
+        $msgPqrs = 'Estado inválido.';
+        if ($idPqrs > 0 && in_array($estadoPqrs, $estadosPqrs, true)) {
+            $stmt = $db->prepare('UPDATE pqrs SET estado = :estado WHERE id_pqrs = :id');
+            $stmt->execute([':estado' => $estadoPqrs, ':id' => $idPqrs]);
+            $msgPqrs = $stmt->rowCount() > 0 ? 'PQRS #' . $idPqrs . ' actualizada a "' . $estadoPqrs . '".' : 'La PQRS no existe o no cambió de estado.';
+        }
+        header("Location: index.php?action=pqrs&msg=" . urlencode($msgPqrs));
+        exit();
+    }
+}
+
+// 3. Cierre de sesión
+if (isset($_GET["action"]) && $_GET["action"] === "logout") {
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+    }
+    session_destroy();
+    header("Location: index.php?action=login");
+    exit();
+}
+
+$roles_dashboard = ['gerente', 'inventario'];
+if (isset($_GET["action"]) && $_GET["action"] === "dashboard_data" && isset($_SESSION["user"]) && in_array($_SESSION['rol'] ?? '', $roles_dashboard, true)) {
+    require_once "config/conexion.php";
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $db = (new Conexion())->conn;
+        $productStats = $db->query('SELECT COUNT(*) AS products, COALESCE(SUM(PRO_stock_actual), 0) AS units, COALESCE(SUM(PRO_stock_actual <= PRO_stock_minimo), 0) AS low FROM productos WHERE deleted_at IS NULL')->fetch(PDO::FETCH_ASSOC);
+        $data = [
+            'todaySales' => 0,
+            'weekSales' => 0,
+            'monthSales' => 0,
+            'pending' => 0,
+            'products' => (int) ($productStats['products'] ?? 0),
+            'stockUnits' => (int) ($productStats['units'] ?? 0),
+            'low' => (int) ($productStats['low'] ?? 0),
+            'weekly' => array_fill(0, 7, 0),
+            'monthly' => array_fill(0, 6, 0),
+        ];
+        $hasSales = (bool) $db->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'ventas'")->fetchColumn();
+        if ($hasSales) {
+            $salesSummary = $db->query("SELECT COALESCE(SUM(CASE WHEN DATE(fecha_venta)=CURRENT_DATE() AND estado <> 'Cancelada' THEN total ELSE 0 END),0) AS today_sales, COALESCE(SUM(CASE WHEN YEARWEEK(fecha_venta, 1)=YEARWEEK(CURRENT_DATE(), 1) AND estado <> 'Cancelada' THEN total ELSE 0 END),0) AS week_sales, COALESCE(SUM(CASE WHEN MONTH(fecha_venta)=MONTH(CURRENT_DATE()) AND YEAR(fecha_venta)=YEAR(CURRENT_DATE()) AND estado <> 'Cancelada' THEN total ELSE 0 END),0) AS month_sales FROM ventas WHERE deleted_at IS NULL")->fetch(PDO::FETCH_ASSOC);
+            $data['todaySales'] = (float) ($salesSummary['today_sales'] ?? 0);
+            $data['weekSales'] = (float) ($salesSummary['week_sales'] ?? 0);
+            $data['monthSales'] = (float) ($salesSummary['month_sales'] ?? 0);
+            $data['pending'] = (int) $db->query("SELECT COALESCE(SUM(estado='Pendiente'),0) FROM ventas WHERE deleted_at IS NULL")->fetchColumn();
+            $stmt = $db->query("SELECT WEEKDAY(fecha_venta) AS day_index, SUM(total) AS amount FROM ventas WHERE fecha_venta >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY) AND estado <> 'Cancelada' AND deleted_at IS NULL GROUP BY WEEKDAY(fecha_venta)");
+            foreach ($stmt as $row) { $index = (int) $row['day_index']; if ($index >= 0 && $index < 7) $data['weekly'][$index] = (float) $row['amount']; }
+            $stmt = $db->query("SELECT PERIOD_DIFF(EXTRACT(YEAR_MONTH FROM CURRENT_DATE()), EXTRACT(YEAR_MONTH FROM fecha_venta)) AS month_index, SUM(total) AS amount FROM ventas WHERE fecha_venta >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 MONTH) AND estado <> 'Cancelada' AND deleted_at IS NULL GROUP BY month_index");
+            foreach ($stmt as $row) { $index = (int) $row['month_index']; if ($index >= 0 && $index < 6) $data['monthly'][5 - $index] = (float) $row['amount']; }
+        }
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $exception) {
+        http_response_code(500);
+        echo json_encode(['error' => 'No fue posible actualizar los indicadores.']);
+    }
+    exit();
+}
+
+// Devuelve la vista "propia" de un rol, para usarla como destino seguro
+// cuando la acción pedida no coincide con ninguna ruta válida para ese rol.
+// Nunca debe apuntar a una vista con más privilegios que los del rol recibido.
+function vista_home_para_rol(string $rol): string
+{
+    switch ($rol) {
+        case 'gerente':
+        case 'inventario':
+            return "view/gerente_sbadm.php";
+        case 'proveedor':
+            return "view/proveedores_dashboard.php";
+        case 'cliente':
+        default:
+            return "view/clientes_dashboard.php";
+    }
+}
+
+// 4. Enrutamiento de Vistas (Usuarios autenticados)
+if (isset($_SESSION["user"])) {
+    require_once "config/conexion.php";
+    $action = $_GET["action"] ?? 'usuario';
+    $section = $_GET["section"] ?? 'home';
+    $rol = $_SESSION["rol"] ?? 'cliente';
+    
+    if ($action === "cliente" && ($rol === "cliente" || $rol === "gerente")) {
+        require_once "view/clientes_dashboard.php";
+    } elseif ($action === "gerente" && $rol === "gerente") {
+        require_once "view/gerente_sbadm.php";
+    } elseif ($action === "proveedor" && ($rol === "proveedor" || $rol === "gerente")) {
+        require_once "view/proveedores_dashboard.php";
+    } elseif ($action === "pqrs" && $rol === "gerente") {
+        require_once "view/pqrs_admin.php";
+    } elseif ($action === "inventario" && in_array($rol, ["inventario", "gerente"], true)) {
+        require_once "view/inventario.php";
+    } elseif ($action === "reportes" && $rol === "gerente") {
+        require_once "view/reportes.php";
+    } elseif ($action === "usuario") {
+        if ($section === "perfil") {
+            require_once "view/perfil.php";
+        } elseif ($section === "usuarios" && $rol === "gerente") {
+            $vista_contenido = "view/usuarios.php";
+            require_once "view/layout_panel.php";
+        } elseif ($section === "nuevo_usuario" && $rol === "gerente") {
+            $vista_contenido = "view/nuevo_usuario.php";
+            require_once "view/layout_panel.php";
+        } elseif ($section === "editar_usuario" && $rol === "gerente") {
+            $vista_contenido = "view/editar_usuario.php";
+            require_once "view/layout_panel.php";
+        } elseif ($rol === "cliente") {
+            require_once "view/clientes_dashboard.php";
+        } elseif ($rol === "proveedor") {
+            require_once "view/proveedores_dashboard.php";
+        } elseif ($rol === "gerente" || $rol === "inventario") {
+            require_once "view/gerente_sbadm.php";
+        } else {
+            require_once "view/clientes_dashboard.php";
+        }
+    } else {
+        // Antes: esto cargaba "view/gerente_sbadm.php" para CUALQUIER action
+        // no reconocida, sin importar el rol -> un cliente pidiendo
+        // ?action=reportes (rol no autorizado para esa ruta) terminaba
+        // viendo el dashboard gerencial completo. Corregido: si la acción
+        // pedida no es válida para el rol del usuario, lo mandamos a SU
+        // propia vista, nunca a una con más privilegios.
+        require_once vista_home_para_rol($rol);
+    }
+} else {
+    $action = $_GET["action"] ?? 'login';
+
+    if ($action === "register") {
+        require_once "view/register.php";
+    } elseif ($action === "recuperar") {
+        require_once "view/recuperar.php";
+    } elseif ($action === "restablecer") {
+        require_once "view/restablecer.php";
+    } else {
+        require_once "view/login.php";
+    }
+}
